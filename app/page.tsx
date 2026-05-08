@@ -1,88 +1,71 @@
 "use client";
-
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
 
-// 1. LIGAÇÃO COM O COFRE (Banco de Dados)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
-export default function LoginPage() {
-  const router = useRouter();
-  
-  // 2. MEMÓRIA DA TELA (Guarda o que o usuário digita)
+export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  // 3. FUNÇÃO DE ENTRAR (O "Guarda" da porta)
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault(); // Evita que a página pisque
+  async function handleAuth(e: React.FormEvent) {
+    e.preventDefault();
     setLoading(true);
 
-    // Bate na porta do Supabase e tenta entrar
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    });
+    try {
+      // 1. LOGIN NO SUPABASE AUTH
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ 
+        email: email.trim(), 
+        password 
+      });
 
-    if (error) {
-      alert("Acesso Negado: E-mail ou senha incorretos! ❌");
-    } else {
-      // Sucesso! Abre a porta do tatame
-      router.push('/dashboard');
+      if (authError) throw new Error("Erro no Login: " + authError.message);
+
+      // 2. BUSCA NA TABELA ALUNOS
+      const emailLimpo = email.trim().toLowerCase();
+      const { data: perfil, error: dbError } = await supabase
+        .from('alunos')
+        .select('*')
+        .eq('email', emailLimpo)
+        .maybeSingle();
+
+      if (dbError) throw new Error("Erro no Banco: " + dbError.message);
+
+      // --- ÁREA DE DIAGNÓSTICO (O que o banco viu) ---
+      if (!perfil) {
+        alert("❌ ERRO DE CADASTRO:\n\nO login funcionou, mas não achei o e-mail [" + emailLimpo + "] na tabela ALUNOS.\n\nVerifique se o e-mail na tabela está escrito EXATAMENTE assim.");
+        router.push('/aluno');
+        return;
+      }
+
+      alert("✅ USUÁRIO ENCONTRADO!\nNome: " + perfil.nome + "\nRole no Banco: " + perfil.role);
+
+      // 3. REDIRECIONAMENTO FORÇADO
+      if (String(perfil.role).trim().toLowerCase() === 'admin') {
+        router.push('/dashboard');
+      } else {
+        router.push('/aluno');
+      }
+
+    } catch (err: any) {
+      alert("⚠️ ERRO CRÍTICO: " + err.message);
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col justify-center items-center p-6 font-sans text-white">
-      <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 p-8 rounded-3xl shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-2 bg-red-600"></div>
-        
-        <div className="text-center mb-10 mt-4">
-          <h1 className="text-4xl font-black uppercase tracking-tighter">
-            RoxBJJ<span className="text-red-600">Planalto</span>
-          </h1>
-          <p className="text-zinc-500 text-xs mt-2 uppercase tracking-widest font-bold">Controle total da sua equipe.</p>
-        </div>
-        
-        {/* Adicionamos o onSubmit no formulário para acionar a função */}
-        <form onSubmit={handleLogin} className="space-y-5">
-          <div>
-            <label className="block text-zinc-400 text-sm font-semibold mb-2">E-mail</label>
-            <input 
-              type="email" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)} // Salva o que foi digitado
-              placeholder="admin@roxbjj.com" 
-              required
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-white focus:outline-none focus:border-red-600 transition-all" 
-            />
-          </div>
-          
-          <div>
-            <label className="block text-zinc-400 text-sm font-semibold mb-2">Senha</label>
-            <input 
-              type="password" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)} // Salva o que foi digitado
-              placeholder="••••••••" 
-              required
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-white focus:outline-none focus:border-red-600 transition-all" 
-            />
-          </div>
-          
-          <button 
-            type="submit"
-            disabled={loading}
-            className="w-full bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold uppercase py-4 rounded-xl shadow-lg mt-4 transition-all"
-          >
-            {loading ? "Verificando..." : "Entrar no Tatame"}
+    <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-zinc-900 p-10 rounded-[40px] border border-zinc-800">
+        <h1 className="text-3xl font-black italic text-center mb-10">ROXBJJ<span className="text-red-600">PLANALTO</span></h1>
+        <form onSubmit={handleAuth} className="space-y-4">
+          <input type="email" placeholder="E-MAIL" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black border border-zinc-800 p-5 rounded-2xl outline-none focus:border-red-600 font-bold" required />
+          <input type="password" placeholder="SENHA" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black border border-zinc-800 p-5 rounded-2xl outline-none focus:border-red-600 font-bold" required />
+          <button disabled={loading} className="w-full bg-red-600 py-5 rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all">
+            {loading ? 'VERIFICANDO...' : 'ENTRAR NO TATAME'}
           </button>
         </form>
       </div>

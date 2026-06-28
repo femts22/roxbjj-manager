@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import type { Faixa } from "@/lib/types";
 
 export type AlunoFormValues = {
+  user_id: string;
   nome: string;
   email: string;
   faixa: Faixa;
@@ -21,6 +22,7 @@ type AlunoFormProps = {
   onCancel: () => void;
   onChange: <K extends keyof AlunoFormValues>(campo: K, valor: AlunoFormValues[K]) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  canManage: boolean;
 };
 
 export function AlunoForm({
@@ -31,6 +33,7 @@ export function AlunoForm({
   onCancel,
   onChange,
   onSubmit,
+  canManage,
 }: AlunoFormProps) {
   return (
     <section className="bg-zinc-900 border border-zinc-800 p-6 rounded-[32px]">
@@ -47,6 +50,7 @@ export function AlunoForm({
       </div>
 
       <form onSubmit={onSubmit} className="grid gap-3 md:grid-cols-6">
+        <input disabled={!canManage} required value={form.user_id} onChange={(event) => onChange("user_id", event.target.value)} className="md:col-span-3 bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none disabled:opacity-50" placeholder="User ID do usuário Auth do Supabase" />
         <input value={form.nome} onChange={(event) => onChange("nome", event.target.value)} className="md:col-span-2 bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Nome" />
         <input type="email" value={form.email} onChange={(event) => onChange("email", event.target.value)} className="md:col-span-2 bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="E-mail" />
         <select value={form.faixa} onChange={(event) => onChange("faixa", event.target.value as Faixa)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none">
@@ -59,7 +63,7 @@ export function AlunoForm({
         <input type="number" min={0} max={4} value={form.grau} onChange={(event) => onChange("grau", event.target.value)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Grau" />
         <input type="number" min={1} max={31} value={form.vencimento} onChange={(event) => onChange("vencimento", event.target.value)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Vencimento" />
         <input type="number" min={0} value={form.presencas} onChange={(event) => onChange("presencas", event.target.value)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Presenças" />
-        <button disabled={salvando} className="md:col-span-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 p-3 px-5 rounded-2xl text-[10px] font-black uppercase transition-all">
+        <button disabled={salvando || !canManage} className="md:col-span-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 p-3 px-5 rounded-2xl text-[10px] font-black uppercase transition-all">
           {salvando ? "Salvando..." : alunoEmEdicao ? "Salvar edição" : "Cadastrar aluno"}
         </button>
       </form>

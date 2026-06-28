@@ -6,19 +6,21 @@ import { AlunoCard } from "@/components/dashboard/AlunoCard";
 import { AlunoForm, type AlunoFormValues } from "@/components/dashboard/AlunoForm";
 import { AlunosFilters, type FiltroPagamento } from "@/components/dashboard/AlunosFilters";
 import { PaginationControls } from "@/components/dashboard/PaginationControls";
+import { canAccessDashboard, canManageAlunos, genericLoadError, genericSaveError, getCurrentProfile, logClientError } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import type { Aluno, AlunoInsert, AlunoUpdate, Faixa } from "@/lib/types";
+import type { Aluno, AlunoInsert, AlunoUpdate, AppRole, Faixa } from "@/lib/types";
 
 type Mensagem = {
   tipo: "sucesso" | "erro";
   texto: string;
 };
 
-const alunosColumns = "id,nome,email,faixa,grau,pago,vencimento,presencas";
+const alunosColumns = "id,user_id,nome,email,faixa,grau,pago,vencimento,presencas";
 const faixas: Faixa[] = ["branca", "azul", "roxa", "marrom", "preta"];
 const itensPorPagina = 6;
 
 const formInicial: AlunoFormValues = {
+  user_id: "",
   nome: "",
   email: "",
   faixa: "branca",
@@ -33,12 +35,17 @@ function normalizarTexto(valor: string) {
 }
 
 function validarFormulario(form: AlunoFormValues): string | null {
+  const userId = form.user_id.trim();
   const nome = form.nome.trim();
   const email = form.email.trim();
   const grau = Number(form.grau);
   const vencimento = Number(form.vencimento);
   const presencas = Number(form.presencas);
 
+  if (!userId) return "Informe o User ID do usuário Auth do Supabase.";
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) {
+    return "Informe um User ID válido do Supabase Auth.";
+  }
   if (nome.length < 3) return "Informe um nome com pelo menos 3 caracteres.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Informe um e-mail válido.";
   if (!Number.isInteger(grau) || grau < 0 || grau > 4) return "O grau deve estar entre 0 e 4.";
@@ -50,6 +57,7 @@ function validarFormulario(form: AlunoFormValues): string | null {
 
 function montarPayload(form: AlunoFormValues): AlunoInsert {
   return {
+    user_id: form.user_id.trim(),
     nome: form.nome.trim(),
     email: form.email.trim().toLowerCase(),
     faixa: form.faixa,
@@ -62,6 +70,7 @@ function montarPayload(form: AlunoFormValues): AlunoInsert {
 
 function alunoParaForm(aluno: Aluno): AlunoFormValues {
   return {
+    user_id: aluno.user_id ?? "",
     nome: aluno.nome,
     email: aluno.email,
     faixa: aluno.faixa,
@@ -83,7 +92,9 @@ export default function DashboardAdmin() {
   const [carregando, setCarregando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState<Mensagem | null>(null);
+  const [role, setRole] = useState<AppRole | null>(null);
   const router = useRouter();
+  const canManage = canManageAlunos(role);
 
   async function carregarAlunos() {
     setCarregando(true);
@@ -94,7 +105,8 @@ export default function DashboardAdmin() {
       .order("nome", { ascending: true });
 
     if (error) {
-      setMensagem({ tipo: "erro", texto: `Erro ao carregar alunos: ${error.message}` });
+      logClientError("Failed to load alunos", error);
+      setMensagem({ tipo: "erro", texto: genericLoadError });
       setAlunos([]);
     } else {
       setAlunos(data ?? []);
@@ -104,8 +116,33 @@ export default function DashboardAdmin() {
   }
 
   useEffect(() => {
-    void carregarAlunos();
-  }, []);
+    let ativo = true;
+
+    async function inicializar() {
+      const profile = await getCurrentProfile();
+
+      if (!ativo) return;
+
+      if (!profile) {
+        router.replace("/");
+        return;
+      }
+
+      if (!canAccessDashboard(profile.role)) {
+        router.replace("/aluno");
+        return;
+      }
+
+      setRole(profile.role);
+      await carregarAlunos();
+    }
+
+    void inicializar();
+
+    return () => {
+      ativo = false;
+    };
+  }, [router]);
 
   useEffect(() => {
     setPaginaAtual(1);
@@ -156,6 +193,12 @@ export default function DashboardAdmin() {
 
   async function salvarAluno(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!canManage) {
+      setMensagem({ tipo: "erro", texto: "Você não tem permissão para gerenciar alunos." });
+      return;
+    }
+
     const erroValidacao = validarFormulario(form);
 
     if (erroValidacao) {
@@ -171,7 +214,8 @@ export default function DashboardAdmin() {
       const { error } = await supabase.from("alunos").update(payload).eq("id", alunoEmEdicao);
 
       if (error) {
-        setMensagem({ tipo: "erro", texto: `Erro ao editar aluno: ${error.message}` });
+        logClientError("Failed to update aluno", error);
+        setMensagem({ tipo: "erro", texto: genericSaveError });
       } else {
         setMensagem({ tipo: "sucesso", texto: "Aluno atualizado com sucesso." });
         limparFormulario();
@@ -182,7 +226,8 @@ export default function DashboardAdmin() {
       const { error } = await supabase.from("alunos").insert(payload);
 
       if (error) {
-        setMensagem({ tipo: "erro", texto: `Erro ao cadastrar aluno: ${error.message}` });
+        logClientError("Failed to insert aluno", error);
+        setMensagem({ tipo: "erro", texto: genericSaveError });
       } else {
         setMensagem({ tipo: "sucesso", texto: "Aluno cadastrado com sucesso." });
         limparFormulario();
@@ -194,6 +239,11 @@ export default function DashboardAdmin() {
   }
 
   async function excluirAluno(aluno: Aluno) {
+    if (!canManage) {
+      setMensagem({ tipo: "erro", texto: "Você não tem permissão para excluir alunos." });
+      return;
+    }
+
     const confirmado = window.confirm(`Excluir ${aluno.nome}? Esta ação não pode ser desfeita.`);
     if (!confirmado) return;
 
@@ -201,7 +251,8 @@ export default function DashboardAdmin() {
     const { error } = await supabase.from("alunos").delete().eq("id", aluno.id);
 
     if (error) {
-      setMensagem({ tipo: "erro", texto: `Erro ao excluir aluno: ${error.message}` });
+      logClientError("Failed to delete aluno", error);
+      setMensagem({ tipo: "erro", texto: genericSaveError });
       return;
     }
 
@@ -210,12 +261,12 @@ export default function DashboardAdmin() {
     await carregarAlunos();
   }
 
-  async function atualizarGrau(id: string, atual: number) {
-    const novo = atual >= 4 ? 0 : atual + 1;
-    const { error } = await supabase.from("alunos").update({ grau: novo }).eq("id", id);
+  async function atualizarGrau(id: string) {
+    const { error } = await supabase.rpc("atualizar_graduacao_aluno", { p_aluno_id: id });
 
     if (error) {
-      setMensagem({ tipo: "erro", texto: `Erro ao atualizar grau: ${error.message}` });
+      logClientError("Failed to update grau", error);
+      setMensagem({ tipo: "erro", texto: genericSaveError });
       return;
     }
 
@@ -233,15 +284,18 @@ export default function DashboardAdmin() {
       </header>
 
       <main className="max-w-5xl mx-auto grid gap-6">
-        <AlunoForm
-          alunoEmEdicao={alunoEmEdicao}
-          faixas={faixas}
-          form={form}
-          salvando={salvando}
-          onCancel={limparFormulario}
-          onChange={atualizarCampo}
-          onSubmit={salvarAluno}
-        />
+        {canManage && (
+          <AlunoForm
+            alunoEmEdicao={alunoEmEdicao}
+            canManage={canManage}
+            faixas={faixas}
+            form={form}
+            salvando={salvando}
+            onCancel={limparFormulario}
+            onChange={atualizarCampo}
+            onSubmit={salvarAluno}
+          />
+        )}
 
         <AlunosFilters
           faixas={faixas}
@@ -269,8 +323,8 @@ export default function DashboardAdmin() {
               key={aluno.id}
               aluno={aluno}
               onAtualizarGrau={atualizarGrau}
-              onEditar={iniciarEdicao}
-              onExcluir={excluirAluno}
+              onEditar={canManage ? iniciarEdicao : undefined}
+              onExcluir={canManage ? excluirAluno : undefined}
             />
           ))}
         </section>

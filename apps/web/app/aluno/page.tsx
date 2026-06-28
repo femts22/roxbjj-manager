@@ -1,22 +1,28 @@
 "use client";
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { genericLoadError, genericSaveError, logClientError } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import type { Aluno } from '@/lib/types';
 
-const alunoColumns = 'id,nome,email,faixa,grau,pago,vencimento,presencas';
+const alunoColumns = 'id,user_id,nome,email,faixa,grau,pago,vencimento,presencas';
 
 export default function AreaAluno() {
   const [aluno, setAluno] = useState<Aluno | null>(null);
-  const [novoVencimento, setNovoVencimento] = useState('');
+  const [erro, setErro] = useState<string | null>(null);
   const router = useRouter();
 
   const carregarDados = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return router.push('/');
-    if (!user.email) return router.push('/');
 
-    const { data } = await supabase.from('alunos').select(alunoColumns).eq('email', user.email).single();
+    const { data, error } = await supabase.from('alunos').select(alunoColumns).eq('user_id', user.id).maybeSingle();
+    if (error) {
+      logClientError("Failed to load student area", error);
+      setErro(genericLoadError);
+      return;
+    }
+
     if (data) setAluno(data);
   }, [router]);
 
@@ -24,20 +30,19 @@ export default function AreaAluno() {
 
   async function handleCheckIn() {
     if (!aluno) return;
-    await supabase.from('alunos').update({ presencas: (aluno.presencas || 0) + 1 }).eq('id', aluno.id);
+    const { error } = await supabase.rpc('registrar_presenca');
+
+    if (error) {
+      logClientError("Failed to register attendance", error);
+      setErro(genericSaveError);
+      return;
+    }
+
     alert("Check-in efetuado! Bom treino!");
-    carregarDados();
+    await carregarDados();
   }
 
-  async function mudarVencimento() {
-    if (!aluno) return;
-    if (!aluno.pago) return alert("Tens mensalidades pendentes. Regulariza primeiro.");
-    await supabase.from('alunos').update({ vencimento: parseInt(novoVencimento) }).eq('id', aluno.id);
-    alert("Data de vencimento alterada para o próximo mês!");
-    carregarDados();
-  }
-
-  if (!aluno) return <div className="min-h-screen bg-black text-white flex items-center justify-center font-black uppercase italic animate-pulse">A carregar tatame...</div>;
+  if (!aluno) return <div className="min-h-screen bg-black text-white flex items-center justify-center font-black uppercase italic animate-pulse">{erro ?? "A carregar tatame..."}</div>;
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-6 pb-12">
@@ -84,6 +89,12 @@ export default function AreaAluno() {
             </div>
           </div>
 
+          {erro && (
+            <div className="mb-4 bg-red-50 text-red-600 border border-red-200 p-3 rounded-2xl text-xs font-bold">
+              {erro}
+            </div>
+          )}
+
           {!aluno.pago ? (
             <div className="space-y-4">
               <div className="bg-zinc-100 p-6 rounded-3xl border-2 border-dashed border-zinc-200 flex flex-col items-center">
@@ -94,11 +105,7 @@ export default function AreaAluno() {
             </div>
           ) : (
             <div className="mt-4 pt-4 border-t border-zinc-100">
-               <p className="text-[10px] font-black text-zinc-400 uppercase mb-3">Mudar data para o próximo mês</p>
-               <div className="flex gap-2">
-                 <input type="number" value={novoVencimento} onChange={e => setNovoVencimento(e.target.value)} className="flex-1 bg-zinc-100 p-4 rounded-xl outline-none font-bold text-sm" placeholder="Ex: 15" />
-                 <button onClick={mudarVencimento} className="bg-black text-white px-6 rounded-xl font-black text-[10px]">ALTERAR</button>
-               </div>
+               <p className="text-[10px] font-black text-zinc-400 uppercase mb-3">Alterações financeiras são feitas pela equipe administrativa.</p>
             </div>
           )}
         </div>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { canAccessDashboard, genericAuthError, getCurrentProfile, logClientError } from '@/lib/auth';
 import { Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
@@ -11,11 +12,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-
-  // Debug para ver se o .env está funcionando
-  useEffect(() => {
-    console.log("Conectando em:", process.env.NEXT_PUBLIC_SUPABASE_URL);
-  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,15 +26,18 @@ export default function LoginPage() {
 
       if (error) throw error;
 
-      router.push('/dashboard');
+      const profile = await getCurrentProfile();
+
+      if (!profile) {
+        await supabase.auth.signOut();
+        throw new Error("Profile not found");
+      }
+
+      router.push(canAccessDashboard(profile.role) ? '/dashboard' : '/aluno');
       router.refresh();
     } catch (err: unknown) {
-      console.error("Erro detalhado:", err);
-      const mensagem = err instanceof Error ? err.message : "Erro inesperado ao acessar o sistema";
-      // Se der 'Failed to fetch', a mensagem fica mais clara
-      setError(mensagem === 'Failed to fetch' 
-        ? 'Erro de conexão: Verifique sua internet ou a URL do Supabase no .env' 
-        : mensagem);
+      logClientError("Login failed", err);
+      setError(genericAuthError);
     } finally {
       setLoading(false);
     }

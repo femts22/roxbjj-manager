@@ -1,19 +1,51 @@
-# Supabase security setup
+# Supabase local development
 
-Apply migrations in `supabase/migrations` before deploying the web app.
+Use the Supabase CLI with Docker to run the database locally. The migration in `supabase/migrations` is the source of truth for local development and future deploys.
+
+## Start local Supabase
+
+1. Install the Supabase CLI and Docker Desktop.
+2. Start the local stack:
+
+```bash
+npm run supabase:start
+```
+
+3. Apply the migrations:
+
+```bash
+npm run supabase:reset
+```
+
+4. Generate `apps/web/.env.local` for the local app:
+
+```bash
+npm run supabase:env
+```
+
+5. Start the web app:
+
+```bash
+npm run dev
+```
+
+The generated `.env.local` points `apps/web` at `http://127.0.0.1:54321`, so development does not depend on Supabase Cloud.
 
 ## First admin
 
-1. Create the first user in Supabase Auth.
-2. Run this once in the SQL editor, replacing the e-mail:
+1. Open the local Studio at the URL printed by `npm run supabase:start` or `npm run supabase:status`.
+2. Create the first Auth user locally.
+3. Open the SQL editor in the local Studio and run:
 
 ```sql
 select public.bootstrap_first_admin('admin@example.com');
 ```
 
-The function refuses to run after an admin already exists.
+Replace the e-mail with the local user you created. The function refuses to run after an admin already exists.
 
-## RLS checks
+## Verify security
+
+Run these checks against the local database:
 
 ```sql
 select schemaname, tablename, rowsecurity

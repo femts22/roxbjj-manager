@@ -8,6 +8,11 @@
     "dev": "npm --prefix ./apps/web run dev",
     "build": "npm --prefix ./apps/web run build",
     "lint": "npm --prefix ./apps/web run lint",
-    "typecheck": "npx tsc -p apps/web/tsconfig.json --noEmit"
+    "typecheck": "npx tsc -p apps/web/tsconfig.json --noEmit",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:reset": "supabase db reset",
+    "supabase:status": "supabase status",
+    "supabase:env": "node scripts/generate-supabase-env.mjs"
   }
 }

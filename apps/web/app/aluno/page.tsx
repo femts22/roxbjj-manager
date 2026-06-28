@@ -1,32 +1,36 @@
 "use client";
-import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import type { Aluno } from '@/lib/types';
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+const alunoColumns = 'id,nome,email,faixa,grau,pago,vencimento,presencas';
 
 export default function AreaAluno() {
-  const [aluno, setAluno] = useState<any>(null);
+  const [aluno, setAluno] = useState<Aluno | null>(null);
   const [novoVencimento, setNovoVencimento] = useState('');
   const router = useRouter();
 
-  async function carregarDados() {
+  const carregarDados = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return router.push('/');
+    if (!user.email) return router.push('/');
 
-    const { data } = await supabase.from('alunos').select('*').eq('email', user.email).single();
+    const { data } = await supabase.from('alunos').select(alunoColumns).eq('email', user.email).single();
     if (data) setAluno(data);
-  }
+  }, [router]);
 
-  useEffect(() => { carregarDados(); }, []);
+  useEffect(() => { void carregarDados(); }, [carregarDados]);
 
   async function handleCheckIn() {
+    if (!aluno) return;
     await supabase.from('alunos').update({ presencas: (aluno.presencas || 0) + 1 }).eq('id', aluno.id);
     alert("Check-in efetuado! Bom treino!");
     carregarDados();
   }
 
   async function mudarVencimento() {
+    if (!aluno) return;
     if (!aluno.pago) return alert("Tens mensalidades pendentes. Regulariza primeiro.");
     await supabase.from('alunos').update({ vencimento: parseInt(novoVencimento) }).eq('id', aluno.id);
     alert("Data de vencimento alterada para o próximo mês!");

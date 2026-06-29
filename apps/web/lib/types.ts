@@ -1,5 +1,5 @@
 export type Faixa = "branca" | "azul" | "roxa" | "marrom" | "preta";
-export type AppRole = "admin" | "professor" | "aluno";
+export type AppRole = "admin" | "professor" | "aluno" | "responsavel";
 
 export type Aluno = {
   id: string;
@@ -63,6 +63,10 @@ export type Database = {
           p_aluno_id: string;
         };
         Returns: null;
+      };
+      is_responsavel: {
+        Args: Record<string, never>;
+        Returns: boolean;
       };
     };
     Enums: {

@@ -6,7 +6,7 @@ import { AlunoCard } from "@/components/dashboard/AlunoCard";
 import { AlunoForm, type AlunoFormValues } from "@/components/dashboard/AlunoForm";
 import { AlunosFilters, type FiltroPagamento } from "@/components/dashboard/AlunosFilters";
 import { PaginationControls } from "@/components/dashboard/PaginationControls";
-import { canAccessDashboard, canManageAlunos, genericLoadError, genericSaveError, getCurrentProfile, logClientError } from "@/lib/auth";
+import { canAccessDashboard, canManageAlunos, genericLoadError, genericSaveError, getCurrentProfile, getHomeRouteForRole, logClientError } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import type { Aluno, AlunoInsert, AlunoUpdate, AppRole, Faixa } from "@/lib/types";
 
@@ -129,7 +129,7 @@ export default function DashboardAdmin() {
       }
 
       if (!canAccessDashboard(profile.role)) {
-        router.replace("/aluno");
+        router.replace(getHomeRouteForRole(profile.role));
         return;
       }
 

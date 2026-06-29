@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { canAccessDashboard, genericAuthError, getCurrentProfile, logClientError } from '@/lib/auth';
+import { genericAuthError, getCurrentProfile, getHomeRouteForRole, logClientError } from '@/lib/auth';
 import { Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
@@ -33,7 +33,7 @@ export default function LoginPage() {
         throw new Error("Profile not found");
       }
 
-      router.push(canAccessDashboard(profile.role) ? '/dashboard' : '/aluno');
+      router.push(getHomeRouteForRole(profile.role));
       router.refresh();
     } catch (err: unknown) {
       logClientError("Login failed", err);

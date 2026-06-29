@@ -13,6 +13,12 @@ export function canManageAlunos(role: AppRole | null | undefined) {
   return role === "admin";
 }
 
+export function getHomeRouteForRole(role: AppRole) {
+  if (canAccessDashboard(role)) return "/dashboard";
+  if (role === "responsavel") return "/responsavel";
+  return "/aluno";
+}
+
 export async function getCurrentProfile(): Promise<Profile | null> {
   const {
     data: { user },

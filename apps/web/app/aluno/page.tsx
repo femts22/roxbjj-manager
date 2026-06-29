@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { genericLoadError, genericSaveError, logClientError } from '@/lib/auth';
+import { genericLoadError, genericSaveError, getCurrentProfile, getHomeRouteForRole, logClientError } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import type { Aluno } from '@/lib/types';
 
@@ -13,10 +13,14 @@ export default function AreaAluno() {
   const router = useRouter();
 
   const carregarDados = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return router.push('/');
+    const profile = await getCurrentProfile();
+    if (!profile) return router.push('/');
 
-    const { data, error } = await supabase.from('alunos').select(alunoColumns).eq('user_id', user.id).maybeSingle();
+    if (profile.role !== "aluno") {
+      return router.replace(getHomeRouteForRole(profile.role));
+    }
+
+    const { data, error } = await supabase.from('alunos').select(alunoColumns).eq('user_id', profile.id).maybeSingle();
     if (error) {
       logClientError("Failed to load student area", error);
       setErro(genericLoadError);

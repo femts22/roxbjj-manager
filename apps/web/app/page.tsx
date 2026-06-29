@@ -50,7 +50,7 @@ export default function LoginPage() {
         {/* Cabeçalho / Logo - AGORA VERMELHO */}
         <div className="text-center">
           <h1 className="text-4xl font-black text-gray-900 tracking-tighter italic">
-            ROX<span className="text-red-600">BJJ</span>
+            ROXBJJ <span className="text-red-600">PLANALTO</span>
           </h1>
           <p className="mt-2 text-gray-500 text-sm font-medium uppercase tracking-widest">
             Acesse o tatame digital
@@ -109,7 +109,7 @@ export default function LoginPage() {
         </form>
 
         <div className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-          ROXBJJ Manager © 2026 - Gestão de Elite
+          ROXBJJ PLANALTO © 2026 - Gestão de Elite
         </div>
       </div>
     </div>

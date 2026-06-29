@@ -1,4 +1,4 @@
-# ROXBJJ Manager
+# ROXBJJ PLANALTO
 
 Aplicação Next.js com Supabase para gestão da academia.
 

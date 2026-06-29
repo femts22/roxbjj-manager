@@ -48,7 +48,7 @@ export default function AreaAluno() {
     <div className="min-h-screen bg-zinc-950 text-white p-6 pb-12">
       <div className="max-w-md mx-auto space-y-6">
         <header className="flex justify-between items-center py-4">
-          <h2 className="text-xl font-black italic tracking-tighter">ROXBJJ<span className="text-red-600">ALUNO</span></h2>
+          <h2 className="text-xl font-black italic tracking-tighter">ROXBJJ <span className="text-red-600">PLANALTO</span></h2>
           <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="bg-zinc-900 p-2 px-4 rounded-full text-[10px] font-black border border-zinc-800">SAIR</button>
         </header>
 

@@ -277,7 +277,7 @@ export default function DashboardAdmin() {
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-6">
       <header className="max-w-5xl mx-auto flex justify-between items-center mb-10">
-        <h2 className="text-2xl font-black italic uppercase">Mestre<span className="text-red-600">ROXBJJ</span></h2>
+        <h2 className="text-2xl font-black italic uppercase">ROXBJJ <span className="text-red-600">PLANALTO</span></h2>
         <div className="flex gap-4">
           <button onClick={() => supabase.auth.signOut().then(() => router.push("/"))} className="bg-red-600 p-2 px-6 rounded-full text-[10px] font-black uppercase">Sair</button>
         </div>

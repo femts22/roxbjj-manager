@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "ROXBJJ PLANALTO",
-  description: "Sistema de Gerenciamento de Equipe",
+  description: "Sistema de gestão da academia ROXBJJ PLANALTO",
 };
 
 export default function RootLayout({

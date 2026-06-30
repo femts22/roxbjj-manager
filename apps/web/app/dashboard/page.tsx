@@ -21,6 +21,7 @@ const itensPorPagina = 6;
 
 const formInicial: AlunoFormValues = {
   user_id: "",
+  responsavel_user_id: "",
   nome: "",
   email: "",
   faixa: "branca",
@@ -36,6 +37,7 @@ function normalizarTexto(valor: string) {
 
 function validarFormulario(form: AlunoFormValues): string | null {
   const userId = form.user_id.trim();
+  const responsavelUserId = form.responsavel_user_id.trim();
   const nome = form.nome.trim();
   const email = form.email.trim();
   const grau = Number(form.grau);
@@ -45,6 +47,9 @@ function validarFormulario(form: AlunoFormValues): string | null {
   if (!userId) return "Informe o User ID do usuário Auth do Supabase.";
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) {
     return "Informe um User ID válido do Supabase Auth.";
+  }
+  if (responsavelUserId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(responsavelUserId)) {
+    return "Informe um User ID válido para o responsável.";
   }
   if (nome.length < 3) return "Informe um nome com pelo menos 3 caracteres.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Informe um e-mail válido.";
@@ -68,9 +73,10 @@ function montarPayload(form: AlunoFormValues): AlunoInsert {
   };
 }
 
-function alunoParaForm(aluno: Aluno): AlunoFormValues {
+function alunoParaForm(aluno: Aluno, responsavelId?: string): AlunoFormValues {
   return {
     user_id: aluno.user_id ?? "",
+    responsavel_user_id: responsavelId ?? "",
     nome: aluno.nome,
     email: aluno.email,
     faixa: aluno.faixa,
@@ -83,6 +89,7 @@ function alunoParaForm(aluno: Aluno): AlunoFormValues {
 
 export default function DashboardAdmin() {
   const [alunos, setAlunos] = useState<Aluno[]>([]);
+  const [responsaveisPorAluno, setResponsaveisPorAluno] = useState<Record<string, string>>({});
   const [form, setForm] = useState<AlunoFormValues>(formInicial);
   const [alunoEmEdicao, setAlunoEmEdicao] = useState<string | null>(null);
   const [filtroPagamento, setFiltroPagamento] = useState<FiltroPagamento>("todos");
@@ -108,8 +115,25 @@ export default function DashboardAdmin() {
       logClientError("Failed to load alunos", error);
       setMensagem({ tipo: "erro", texto: genericLoadError });
       setAlunos([]);
+      setResponsaveisPorAluno({});
     } else {
       setAlunos(data ?? []);
+
+      const { data: vinculos, error: vinculosError } = await supabase
+        .from("responsavel_alunos")
+        .select("aluno_id,responsavel_id");
+
+      if (vinculosError) {
+        logClientError("Failed to load responsible links", vinculosError);
+        setResponsaveisPorAluno({});
+      } else {
+        setResponsaveisPorAluno(
+          (vinculos ?? []).reduce<Record<string, string>>((mapa, vinculo) => {
+            mapa[vinculo.aluno_id] = vinculo.responsavel_id;
+            return mapa;
+          }, {}),
+        );
+      }
     }
 
     setCarregando(false);
@@ -186,9 +210,27 @@ export default function DashboardAdmin() {
   }
 
   function iniciarEdicao(aluno: Aluno) {
-    setForm(alunoParaForm(aluno));
+    setForm(alunoParaForm(aluno, responsaveisPorAluno[aluno.id]));
     setAlunoEmEdicao(aluno.id);
     setMensagem(null);
+  }
+
+  async function salvarVinculoResponsavel(alunoId: string, responsavelId: string) {
+    const { error: deleteError } = await supabase.from("responsavel_alunos").delete().eq("aluno_id", alunoId);
+
+    if (deleteError) {
+      logClientError("Failed to clear responsible link", deleteError);
+      return deleteError;
+    }
+
+    if (!responsavelId) return null;
+
+    const { error: insertError } = await supabase
+      .from("responsavel_alunos")
+      .insert({ aluno_id: alunoId, responsavel_id: responsavelId });
+
+    if (insertError) logClientError("Failed to save responsible link", insertError);
+    return insertError;
   }
 
   async function salvarAluno(event: React.FormEvent<HTMLFormElement>) {
@@ -217,18 +259,34 @@ export default function DashboardAdmin() {
         logClientError("Failed to update aluno", error);
         setMensagem({ tipo: "erro", texto: genericSaveError });
       } else {
+        const vinculoError = await salvarVinculoResponsavel(alunoEmEdicao, form.responsavel_user_id.trim());
+
+        if (vinculoError) {
+          setMensagem({ tipo: "erro", texto: genericSaveError });
+          setSalvando(false);
+          return;
+        }
+
         setMensagem({ tipo: "sucesso", texto: "Aluno atualizado com sucesso." });
         limparFormulario();
         await carregarAlunos();
       }
     } else {
       const payload = montarPayload(form);
-      const { error } = await supabase.from("alunos").insert(payload);
+      const { data, error } = await supabase.from("alunos").insert(payload).select("id").single();
 
-      if (error) {
+      if (error || !data) {
         logClientError("Failed to insert aluno", error);
         setMensagem({ tipo: "erro", texto: genericSaveError });
       } else {
+        const vinculoError = await salvarVinculoResponsavel(data.id, form.responsavel_user_id.trim());
+
+        if (vinculoError) {
+          setMensagem({ tipo: "erro", texto: genericSaveError });
+          setSalvando(false);
+          return;
+        }
+
         setMensagem({ tipo: "sucesso", texto: "Aluno cadastrado com sucesso." });
         limparFormulario();
         await carregarAlunos();
@@ -322,6 +380,7 @@ export default function DashboardAdmin() {
             <AlunoCard
               key={aluno.id}
               aluno={aluno}
+              responsavelId={responsaveisPorAluno[aluno.id]}
               onAtualizarGrau={atualizarGrau}
               onEditar={canManage ? iniciarEdicao : undefined}
               onExcluir={canManage ? excluirAluno : undefined}

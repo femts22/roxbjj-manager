@@ -4,12 +4,13 @@ import type { Aluno } from "@/lib/types";
 
 type AlunoCardProps = {
   aluno: Aluno;
+  responsavelId?: string;
   onAtualizarGrau: (id: string, grauAtual: number) => void;
   onEditar?: (aluno: Aluno) => void;
   onExcluir?: (aluno: Aluno) => void;
 };
 
-export function AlunoCard({ aluno, onAtualizarGrau, onEditar, onExcluir }: AlunoCardProps) {
+export function AlunoCard({ aluno, responsavelId, onAtualizarGrau, onEditar, onExcluir }: AlunoCardProps) {
   return (
     <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[32px] flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div>
@@ -21,6 +22,9 @@ export function AlunoCard({ aluno, onAtualizarGrau, onEditar, onExcluir }: Aluno
         </div>
         <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Faixa {aluno.faixa} • {aluno.grau} Graus • Vence dia {aluno.vencimento} • {aluno.presencas ?? 0} treinos</p>
         <p className="text-[10px] text-zinc-600 font-bold mt-1">{aluno.email}</p>
+        {responsavelId && (
+          <p className="text-[9px] text-zinc-500 font-bold mt-2 uppercase tracking-widest">Responsável: {responsavelId}</p>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2">

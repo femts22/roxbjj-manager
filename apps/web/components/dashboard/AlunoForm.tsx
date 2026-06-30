@@ -5,6 +5,7 @@ import type { Faixa } from "@/lib/types";
 
 export type AlunoFormValues = {
   user_id: string;
+  responsavel_user_id: string;
   nome: string;
   email: string;
   faixa: Faixa;
@@ -51,6 +52,7 @@ export function AlunoForm({
 
       <form onSubmit={onSubmit} className="grid gap-3 md:grid-cols-6">
         <input disabled={!canManage} required value={form.user_id} onChange={(event) => onChange("user_id", event.target.value)} className="md:col-span-3 bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none disabled:opacity-50" placeholder="User ID do usuário Auth do Supabase" />
+        <input disabled={!canManage} value={form.responsavel_user_id} onChange={(event) => onChange("responsavel_user_id", event.target.value)} className="md:col-span-3 bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none disabled:opacity-50" placeholder="User ID do responsável (opcional)" />
         <input value={form.nome} onChange={(event) => onChange("nome", event.target.value)} className="md:col-span-2 bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Nome" />
         <input type="email" value={form.email} onChange={(event) => onChange("email", event.target.value)} className="md:col-span-2 bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="E-mail" />
         <select value={form.faixa} onChange={(event) => onChange("faixa", event.target.value as Faixa)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none">

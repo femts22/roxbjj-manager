@@ -28,6 +28,17 @@ export type AlunoInsert = {
 
 export type AlunoUpdate = Partial<AlunoInsert>;
 
+export type ResponsavelAluno = {
+  responsavel_id: string;
+  aluno_id: string;
+  created_at?: string;
+};
+
+export type ResponsavelAlunoInsert = {
+  responsavel_id: string;
+  aluno_id: string;
+};
+
 export type Profile = {
   id: string;
   email: string;
@@ -49,6 +60,12 @@ export type Database = {
         Row: Aluno;
         Insert: AlunoInsert;
         Update: AlunoUpdate;
+        Relationships: [];
+      };
+      responsavel_alunos: {
+        Row: ResponsavelAluno;
+        Insert: ResponsavelAlunoInsert;
+        Update: Partial<ResponsavelAlunoInsert>;
         Relationships: [];
       };
     };

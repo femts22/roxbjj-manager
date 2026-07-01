@@ -96,10 +96,10 @@ export default function CadastroAlunoPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 py-8">
-      <main className="w-full max-w-xl space-y-6 bg-white p-8 rounded-2xl border border-gray-200 shadow-xl">
+    <div className="min-h-dvh flex items-center justify-center bg-gray-100 px-4 py-5 sm:py-8">
+      <main className="w-full max-w-xl space-y-6 bg-white p-5 sm:p-8 rounded-2xl border border-gray-200 shadow-xl">
         <header className="text-center space-y-2">
-          <h1 className="text-4xl font-black text-gray-900 tracking-tighter italic">
+          <h1 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tighter italic">
             ROXBJJ <span className="text-red-600">PLANALTO</span>
           </h1>
           <p className="text-gray-500 text-sm font-medium uppercase tracking-widest">
@@ -205,7 +205,7 @@ export default function CadastroAlunoPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg shadow-lg shadow-red-200 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+            className="w-full min-h-14 bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg shadow-lg shadow-red-200 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
           >
             {loading ? <Loader2 className="animate-spin h-5 w-5" /> : "CRIAR CADASTRO DE ALUNO"}
           </button>

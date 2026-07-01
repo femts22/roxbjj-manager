@@ -1,0 +1,19 @@
+{
+  "name": "ROXBJJ PLANALTO",
+  "short_name": "ROXBJJ",
+  "description": "Sistema de gestão da academia ROXBJJ PLANALTO",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#09090b",
+  "theme_color": "#dc2626",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

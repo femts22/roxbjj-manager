@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ROXBJJ PLANALTO">
+  <rect width="512" height="512" rx="112" fill="#09090b"/>
+  <rect x="56" y="56" width="400" height="400" rx="88" fill="#dc2626"/>
+  <rect x="86" y="86" width="340" height="340" rx="66" fill="#111113"/>
+  <path fill="#ffffff" d="M140 173h125c44 0 74 26 74 65 0 28-15 50-41 60l48 71h-64l-41-62h-45v62h-56V173Zm116 87c17 0 28-9 28-24s-11-24-28-24h-60v48h60Z"/>
+  <path fill="#dc2626" d="M346 173h58v196h-58z"/>
+</svg>

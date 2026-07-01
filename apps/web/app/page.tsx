@@ -45,12 +45,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-2xl border border-gray-200 shadow-xl">
+    <div className="min-h-dvh flex items-center justify-center bg-gray-100 px-4 py-5">
+      <div className="w-full max-w-md space-y-7 bg-white p-6 sm:p-8 rounded-2xl border border-gray-200 shadow-xl">
         
         {/* Cabeçalho / Logo - AGORA VERMELHO */}
         <div className="text-center">
-          <h1 className="text-4xl font-black text-gray-900 tracking-tighter italic">
+          <h1 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tighter italic">
             ROXBJJ <span className="text-red-600">PLANALTO</span>
           </h1>
           <p className="mt-2 text-gray-500 text-sm font-medium uppercase tracking-widest">
@@ -99,7 +99,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg shadow-lg shadow-red-200 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+            className="w-full min-h-14 bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg shadow-lg shadow-red-200 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
           >
             {loading ? (
               <Loader2 className="animate-spin h-5 w-5" />
@@ -110,7 +110,7 @@ export default function LoginPage() {
         </form>
 
         <div className="text-center">
-          <Link href="/cadastro" className="block text-sm font-black uppercase tracking-widest text-red-600 hover:text-red-700">
+          <Link href="/cadastro" className="block text-xs sm:text-sm font-black uppercase tracking-widest text-red-600 hover:text-red-700">
             Ainda não treina conosco? Sou aluno novo, quero me cadastrar
           </Link>
         </div>

@@ -2,12 +2,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { genericLoadError, genericSaveError, getCurrentProfile, getHomeRouteForRole, logClientError } from '@/lib/auth';
+import { calcularResumoCobranca, formatarData, formatarValor, textoStatusFinanceiro } from '@/lib/financeiro';
 import { categoriasGraduacao, faixaCompativelComCategoria, faixasPorCategoria } from '@/lib/graduacao';
 import { supabase } from '@/lib/supabase';
-import type { Aluno, CategoriaGraduacao, FaixaGraduacao, GraduacaoSolicitacao } from '@/lib/types';
+import type { Aluno, CategoriaGraduacao, FaixaGraduacao, GraduacaoSolicitacao, Pagamento } from '@/lib/types';
 
-const alunoColumns = 'id,user_id,nome,email,categoria,faixa,grau,graus,graduacao_aprovada,pago,vencimento,presencas,telefone,data_nascimento,observacoes';
+const alunoColumns = 'id,user_id,nome,email,categoria,faixa,grau,graus,graduacao_aprovada,pago,vencimento,dia_vencimento_pagamento,presencas,telefone,data_nascimento,observacoes';
 const graduacaoSolicitacoesColumns = 'id,aluno_id,user_id,categoria,faixa,graus,data_ultima_graduacao,academia_origem,professor_graduador,observacoes,status,analisado_por,analisado_em,created_at,updated_at';
+const pagamentosColumns = "id,aluno_id,valor,data_vencimento,data_pagamento,status,observacoes,created_at,updated_at";
 
 type GraduacaoForm = {
   categoria: CategoriaGraduacao;
@@ -32,6 +34,7 @@ const graduacaoFormInicial: GraduacaoForm = {
 export default function AreaAluno() {
   const [aluno, setAluno] = useState<Aluno | null>(null);
   const [solicitacaoPendente, setSolicitacaoPendente] = useState<GraduacaoSolicitacao | null>(null);
+  const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
   const [graduacaoForm, setGraduacaoForm] = useState<GraduacaoForm>(graduacaoFormInicial);
   const [carregando, setCarregando] = useState(true);
   const [salvandoGraduacao, setSalvandoGraduacao] = useState(false);
@@ -80,6 +83,18 @@ export default function AreaAluno() {
       }
 
       setSolicitacaoPendente(solicitacao ?? null);
+
+      const { data: pagamentosData, error: pagamentosError } = await supabase
+        .from("pagamentos")
+        .select(pagamentosColumns)
+        .eq("aluno_id", data.id)
+        .order("data_vencimento", { ascending: false });
+
+      if (pagamentosError) {
+        logClientError("Failed to load student payments", pagamentosError);
+      }
+
+      setPagamentos(pagamentosData ?? []);
     }
 
     setCarregando(false);
@@ -183,6 +198,14 @@ export default function AreaAluno() {
       </div>
     );
   }
+
+  const cobrancas = pagamentos.map((pagamento) => calcularResumoCobranca(aluno, pagamento));
+  const valorEmAberto = cobrancas
+    .filter((cobranca) => cobranca.status === "aberto" || cobranca.status === "vence_hoje")
+    .reduce((total, cobranca) => total + cobranca.valor, 0);
+  const valorVencido = cobrancas
+    .filter((cobranca) => cobranca.status === "vencido" || cobranca.status === "inadimplente")
+    .reduce((total, cobranca) => total + cobranca.valor, 0);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-6 pb-12">
@@ -299,7 +322,7 @@ export default function AreaAluno() {
           <div className="flex justify-between items-center mb-6">
             <div>
               <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Vencimento</p>
-              <p className="text-2xl font-black italic">DIA {aluno.vencimento}</p>
+              <p className="text-2xl font-black italic">DIA {aluno.dia_vencimento_pagamento ?? aluno.vencimento}</p>
             </div>
             <div className={`px-4 py-2 rounded-full text-[10px] font-black ${aluno.pago ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
               {aluno.pago ? 'PAGO' : 'EM FALTA'}
@@ -312,19 +335,41 @@ export default function AreaAluno() {
             </div>
           )}
 
-          {!aluno.pago ? (
-            <div className="space-y-4">
-              <div className="bg-zinc-100 p-6 rounded-3xl border-2 border-dashed border-zinc-200 flex flex-col items-center">
-                <div className="w-32 h-32 bg-zinc-300 rounded-xl mb-2 animate-pulse" />
-                <p className="text-[9px] font-bold text-zinc-400 uppercase">QR CODE PIX</p>
-              </div>
-              <button className="w-full bg-black text-white py-4 rounded-2xl font-black text-[10px] uppercase">Copiar Chave PIX</button>
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="bg-zinc-100 p-4 rounded-3xl">
+              <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Em aberto</p>
+              <p className="mt-1 font-black">{formatarValor(valorEmAberto)}</p>
             </div>
-          ) : (
-            <div className="mt-4 pt-4 border-t border-zinc-100">
-               <p className="text-[10px] font-black text-zinc-400 uppercase mb-3">Alterações financeiras são feitas pela equipe administrativa.</p>
+            <div className="bg-zinc-100 p-4 rounded-3xl">
+              <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Vencido</p>
+              <p className="mt-1 font-black">{formatarValor(valorVencido)}</p>
             </div>
-          )}
+          </div>
+
+          <div className="space-y-3">
+            {cobrancas.length === 0 ? (
+              <div className="bg-zinc-100 p-5 rounded-3xl text-center text-[10px] font-black uppercase tracking-widest text-zinc-400">Nenhuma cobrança registrada</div>
+            ) : cobrancas.map((cobranca) => (
+              <article key={cobranca.pagamento?.id ?? cobranca.dataVencimento} className="bg-zinc-100 p-5 rounded-3xl">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Vencimento</p>
+                    <p className="text-sm font-black">{formatarData(cobranca.dataVencimento)}</p>
+                  </div>
+                  <span className="rounded-full bg-black px-3 py-1 text-[9px] font-black uppercase text-white">
+                    {textoStatusFinanceiro(cobranca.status, cobranca.diasEmAtraso)}
+                  </span>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-xs font-bold text-zinc-600">
+                  <span>Valor: {formatarValor(cobranca.valor)}</span>
+                  <span>Dias em atraso: {cobranca.diasEmAtraso}</span>
+                </div>
+                {cobranca.pagamento?.observacoes && <p className="mt-3 text-xs font-medium text-zinc-500">{cobranca.pagamento.observacoes}</p>}
+              </article>
+            ))}
+          </div>
+
+          <p className="mt-5 text-[10px] font-black text-zinc-400 uppercase">Alterações financeiras são feitas pela equipe administrativa.</p>
         </div>
       </div>
     </div>

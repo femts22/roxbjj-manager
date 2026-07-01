@@ -208,6 +208,20 @@ function FichaAlunoContent() {
 
   const ultimoPagamento = pagamentos.find((pagamento) => pagamento.status === "pago" || pagamento.data_pagamento) ?? pagamentos[0];
   const financeiro = aluno ? calcularStatusFinanceiro(aluno, ultimoPagamento) : null;
+  const cobrancasFinanceiro = aluno
+    ? pagamentos.map((pagamento) => ({
+      pagamento,
+      valor: Number(pagamento.valor ?? 0),
+      ...calcularStatusFinanceiro(aluno, pagamento),
+    }))
+    : [];
+  const valorEmAberto = cobrancasFinanceiro
+    .filter((cobranca) => cobranca.status === "aberto" || cobranca.status === "vence_hoje")
+    .reduce((total, cobranca) => total + cobranca.valor, 0);
+  const valorVencido = cobrancasFinanceiro
+    .filter((cobranca) => cobranca.status === "atrasado" || cobranca.status === "inadimplente")
+    .reduce((total, cobranca) => total + cobranca.valor, 0);
+  const maiorAtraso = cobrancasFinanceiro.reduce((maior, cobranca) => Math.max(maior, cobranca.diasEmAtraso), 0);
 
   const eventos = useMemo<EventoHistorico[]>(() => {
     if (!aluno) return [];
@@ -335,6 +349,9 @@ function FichaAlunoContent() {
               <InfoItem label="Dia de vencimento" value={diaVencimento(aluno)} />
               <InfoItem label="Vencimento atual" value={formatarData(financeiro.dataVencimento)} />
               <InfoItem label="Último pagamento" value={formatarData(ultimoPagamento?.data_pagamento)} />
+              <InfoItem label="Valores em aberto" value={formatarValor(valorEmAberto)} />
+              <InfoItem label="Valores vencidos" value={formatarValor(valorVencido)} />
+              <InfoItem label="Maior atraso" value={`${maiorAtraso} ${maiorAtraso === 1 ? "dia" : "dias"}`} />
             </div>
 
             <div className="rounded-[32px] border border-zinc-800 bg-zinc-900 p-6">
@@ -345,7 +362,7 @@ function FichaAlunoContent() {
                 <div className="grid gap-3">
                   {pagamentos.map((pagamento) => (
                     <article key={pagamento.id} className="grid gap-3 rounded-2xl border border-zinc-800 bg-zinc-950 p-5 md:grid-cols-5 md:items-center">
-                      <h3 className="font-black uppercase">{pagamento.status}</h3>
+                      <h3 className="font-black uppercase">{textoStatusFinanceiro(calcularStatusFinanceiro(aluno, pagamento).status, calcularStatusFinanceiro(aluno, pagamento).diasEmAtraso)}</h3>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Vence: {formatarData(pagamento.data_vencimento)}</p>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Pago em: {formatarData(pagamento.data_pagamento)}</p>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Valor: {formatarValor(pagamento.valor)}</p>

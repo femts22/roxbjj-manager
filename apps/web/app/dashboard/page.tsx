@@ -18,7 +18,14 @@ type Mensagem = {
 
 type AdminTab = "atletas" | "cadastro" | "graduacoes" | "pagamentos";
 type GraduacaoCardStatus = "pendente" | "aprovada" | "sem_graduacao";
-type PagamentoResumoStatus = "pago" | "vence_em_breve" | "vencido" | "aberto";
+type PagamentoResumoStatus = "pago" | "aberto" | "vence_hoje" | "atrasado" | "inadimplente" | "cancelado";
+type PagamentoResumo = {
+  aluno: Aluno;
+  pagamento?: Pagamento;
+  dataVencimento: string;
+  diasEmAtraso: number;
+  status: PagamentoResumoStatus;
+};
 
 const alunosColumns = "id,user_id,nome,email,categoria,faixa,grau,graus,graduacao_aprovada,pago,vencimento,dia_vencimento_pagamento,presencas,telefone,data_nascimento,observacoes";
 const graduacaoSolicitacoesColumns = "id,aluno_id,user_id,categoria,faixa,graus,data_ultima_graduacao,academia_origem,professor_graduador,observacoes,status,analisado_por,analisado_em,created_at,updated_at";
@@ -26,6 +33,7 @@ const pagamentosColumns = "id,aluno_id,valor,data_vencimento,data_pagamento,stat
 const vencimentoSolicitacoesColumns = "id,aluno_id,user_id,dia_atual,dia_solicitado,motivo,status,analisado_por,analisado_em,created_at,updated_at";
 const faixas: Faixa[] = ["branca", "azul", "roxa", "marrom", "preta"];
 const itensPorPagina = 6;
+const INADIMPLENCIA_DIAS = 1;
 
 const tabs: { id: AdminTab; label: string }[] = [
   { id: "atletas", label: "Atletas" },
@@ -136,32 +144,72 @@ function diferencaDias(data: string) {
   return Math.ceil((vencimento.getTime() - hoje.getTime()) / 86400000);
 }
 
+function hojeISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function diaPagamentoAluno(aluno: Aluno) {
   return aluno.dia_vencimento_pagamento ?? aluno.vencimento;
 }
 
-function calcularStatusPagamento(aluno: Aluno, ultimoPagamento?: Pagamento): PagamentoResumoStatus {
-  if (ultimoPagamento?.status === "pago" || aluno.pago) return "pago";
-  if (ultimoPagamento?.data_vencimento) {
-    const dias = diferencaDias(ultimoPagamento.data_vencimento);
-    if (dias < 0 || ultimoPagamento.status === "vencido") return "vencido";
-    if (dias <= 7) return "vence_em_breve";
-    return "aberto";
+function dataVencimentoAtual(dia: number) {
+  const hoje = new Date();
+  const ano = hoje.getFullYear();
+  const mes = hoje.getMonth();
+  const ultimoDiaMes = new Date(ano, mes + 1, 0).getDate();
+  const diaSeguro = Math.min(Math.max(dia, 1), ultimoDiaMes);
+  const data = new Date(ano, mes, diaSeguro);
+  return data.toISOString().slice(0, 10);
+}
+
+function calcularResumoPagamento(aluno: Aluno, pagamento?: Pagamento): PagamentoResumo {
+  const dataVencimento = pagamento?.data_vencimento ?? dataVencimentoAtual(diaPagamentoAluno(aluno));
+
+  if (pagamento?.status === "cancelado") {
+    return { aluno, pagamento, dataVencimento, diasEmAtraso: 0, status: "cancelado" };
   }
 
-  const hoje = new Date().getDate();
-  const dia = diaPagamentoAluno(aluno);
-  if (dia < hoje) return "vencido";
-  if (dia - hoje <= 7) return "vence_em_breve";
-  return "aberto";
+  if (pagamento?.status === "pago" || pagamento?.data_pagamento || aluno.pago) {
+    return { aluno, pagamento, dataVencimento, diasEmAtraso: 0, status: "pago" };
+  }
+
+  const diasParaVencer = diferencaDias(dataVencimento);
+  const diasEmAtraso = Math.max(0, -diasParaVencer);
+
+  if (diasEmAtraso > INADIMPLENCIA_DIAS) return { aluno, pagamento, dataVencimento, diasEmAtraso, status: "inadimplente" };
+  if (diasEmAtraso > 0) return { aluno, pagamento, dataVencimento, diasEmAtraso, status: "atrasado" };
+  if (diasParaVencer === 0) return { aluno, pagamento, dataVencimento, diasEmAtraso: 0, status: "vence_hoje" };
+  return { aluno, pagamento, dataVencimento, diasEmAtraso: 0, status: "aberto" };
 }
 
 const pagamentoStatusLabel: Record<PagamentoResumoStatus, string> = {
   pago: "Pago",
-  vence_em_breve: "Vence em breve",
-  vencido: "Vencido/atrasado",
-  aberto: "Aberto",
+  aberto: "Em aberto",
+  vence_hoje: "Vence hoje",
+  atrasado: "Vencido/atrasado",
+  inadimplente: "Inadimplente",
+  cancelado: "Cancelado",
 };
+
+const pagamentoStatusClass: Record<PagamentoResumoStatus, string> = {
+  pago: "bg-green-500 text-black",
+  aberto: "bg-zinc-800 text-zinc-300",
+  vence_hoje: "bg-yellow-400 text-black",
+  atrasado: "bg-red-600 text-white",
+  inadimplente: "bg-red-900 text-red-100",
+  cancelado: "bg-zinc-800 text-zinc-400",
+};
+
+function formatarValor(valor?: number | null) {
+  if (valor == null) return "-";
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
+}
+
+function textoStatusPagamento(resumo: PagamentoResumo) {
+  if (resumo.status === "atrasado") return `Atrasado há ${resumo.diasEmAtraso} ${resumo.diasEmAtraso === 1 ? "dia" : "dias"}`;
+  if (resumo.status === "inadimplente") return `Inadimplente há ${resumo.diasEmAtraso} dias`;
+  return pagamentoStatusLabel[resumo.status];
+}
 
 export default function DashboardAdmin() {
   const [activeTab, setActiveTab] = useState<AdminTab>("atletas");
@@ -178,6 +226,7 @@ export default function DashboardAdmin() {
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [carregando, setCarregando] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [pagamentoEmAtualizacao, setPagamentoEmAtualizacao] = useState<string | null>(null);
   const [mensagem, setMensagem] = useState<Mensagem | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const router = useRouter();
@@ -312,6 +361,20 @@ export default function DashboardAdmin() {
       return mapa;
     }, new Map());
   }, [pagamentos]);
+
+  const pagamentosResumo = useMemo(() => {
+    return alunos.map((aluno) => calcularResumoPagamento(aluno, ultimoPagamentoPorAluno.get(aluno.id)));
+  }, [alunos, ultimoPagamentoPorAluno]);
+
+  const pagamentosResumoContadores = useMemo(() => {
+    return pagamentosResumo.reduce<Record<PagamentoResumoStatus, number>>(
+      (contadores, resumo) => {
+        contadores[resumo.status] += 1;
+        return contadores;
+      },
+      { pago: 0, aberto: 0, vence_hoje: 0, atrasado: 0, inadimplente: 0, cancelado: 0 },
+    );
+  }, [pagamentosResumo]);
 
   const alunosFiltrados = useMemo(() => {
     const diaAtual = new Date().getDate();
@@ -518,6 +581,52 @@ export default function DashboardAdmin() {
     await carregarSolicitacoesVencimento();
   }
 
+  async function atualizarStatusPagamento(resumo: PagamentoResumo, status: "pago" | "aberto" | "cancelado") {
+    if (!canManage) {
+      setMensagem({ tipo: "erro", texto: "Apenas administradores podem alterar pagamentos." });
+      return;
+    }
+
+    setPagamentoEmAtualizacao(resumo.aluno.id);
+    setMensagem(null);
+
+    const payload = {
+      aluno_id: resumo.aluno.id,
+      data_vencimento: resumo.dataVencimento,
+      data_pagamento: status === "pago" ? hojeISO() : null,
+      status,
+      observacoes: resumo.pagamento?.observacoes ?? null,
+    };
+
+    const { error: pagamentoError } = resumo.pagamento
+      ? await supabase.from("pagamentos").update(payload).eq("id", resumo.pagamento.id)
+      : await supabase.from("pagamentos").insert(payload);
+
+    if (pagamentoError) {
+      logClientError("Failed to update payment status", pagamentoError);
+      setMensagem({ tipo: "erro", texto: genericSaveError });
+      setPagamentoEmAtualizacao(null);
+      return;
+    }
+
+    const { error: alunoError } = await supabase
+      .from("alunos")
+      .update({ pago: status === "pago" })
+      .eq("id", resumo.aluno.id);
+
+    if (alunoError) {
+      logClientError("Failed to sync aluno payment flag", alunoError);
+      setMensagem({ tipo: "erro", texto: genericSaveError });
+      setPagamentoEmAtualizacao(null);
+      return;
+    }
+
+    setMensagem({ tipo: "sucesso", texto: status === "pago" ? "Pagamento marcado como pago." : status === "aberto" ? "Pagamento marcado como aberto." : "Pagamento cancelado." });
+    await carregarAlunos();
+    await carregarPagamentos();
+    setPagamentoEmAtualizacao(null);
+  }
+
   async function atualizarGrau(id: string) {
     const { error } = await supabase.rpc("atualizar_graduacao_aluno", { p_aluno_id: id });
 
@@ -691,24 +800,59 @@ export default function DashboardAdmin() {
                 <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Controle inicial manual</p>
               </div>
 
+              <div className="mb-5 grid gap-3 md:grid-cols-4">
+                <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Pagos</p>
+                  <p className="mt-1 text-2xl font-black text-green-400">{pagamentosResumoContadores.pago}</p>
+                </div>
+                <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Em aberto</p>
+                  <p className="mt-1 text-2xl font-black text-zinc-200">{pagamentosResumoContadores.aberto + pagamentosResumoContadores.vence_hoje}</p>
+                </div>
+                <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Vencidos</p>
+                  <p className="mt-1 text-2xl font-black text-red-400">{pagamentosResumoContadores.atrasado}</p>
+                </div>
+                <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Inadimplentes</p>
+                  <p className="mt-1 text-2xl font-black text-red-300">{pagamentosResumoContadores.inadimplente}</p>
+                </div>
+              </div>
+
               <div className="grid gap-3">
-                {alunos.length === 0 ? (
+                {pagamentosResumo.length === 0 ? (
                   <div className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl text-center text-[10px] font-black uppercase tracking-widest text-zinc-500">Nenhum atleta encontrado</div>
-                ) : alunos.map((aluno) => {
-                  const ultimoPagamento = ultimoPagamentoPorAluno.get(aluno.id);
-                  const status = calcularStatusPagamento(aluno, ultimoPagamento);
+                ) : pagamentosResumo.map((resumo) => {
+                  const atualizando = pagamentoEmAtualizacao === resumo.aluno.id;
+                  const podeMarcarPago = canManage && resumo.status !== "pago" && resumo.status !== "cancelado";
+                  const podeMarcarAberto = canManage && resumo.status !== "aberto" && resumo.status !== "vence_hoje";
+                  const podeCancelar = canManage && Boolean(resumo.pagamento) && resumo.status !== "cancelado";
 
                   return (
-                    <article key={aluno.id} className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl grid gap-3 md:grid-cols-5 md:items-center">
-                      <div className="md:col-span-2">
-                        <h4 className="font-black uppercase">{aluno.nome}</h4>
-                        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Vence dia {diaPagamentoAluno(aluno)}</p>
+                    <article key={resumo.aluno.id} className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl grid gap-4 xl:grid-cols-[1.2fr_1fr_1fr_1fr_auto] xl:items-center">
+                      <div>
+                        <h4 className="font-black uppercase">{resumo.aluno.nome}</h4>
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Dia de vencimento: {diaPagamentoAluno(resumo.aluno)}</p>
                       </div>
-                      <span className={`w-fit rounded-full px-3 py-1 text-[9px] font-black uppercase ${status === "pago" ? "bg-green-500 text-black" : status === "vence_em_breve" ? "bg-yellow-400 text-black" : status === "vencido" ? "bg-red-600 text-white" : "bg-zinc-800 text-zinc-300"}`}>
-                        {pagamentoStatusLabel[status]}
-                      </span>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Último pagamento: {formatarData(ultimoPagamento?.data_pagamento)}</p>
-                      <p className="text-xs text-zinc-400">{ultimoPagamento?.observacoes ?? "Sem observação"}</p>
+                      <div className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                        <span>Vencimento atual: {formatarData(resumo.dataVencimento)}</span>
+                        <span>Valor: {formatarValor(resumo.pagamento?.valor)}</span>
+                      </div>
+                      <div className="grid gap-2">
+                        <span className={`w-fit rounded-full px-3 py-1 text-[9px] font-black uppercase ${pagamentoStatusClass[resumo.status]}`}>
+                          {textoStatusPagamento(resumo)}
+                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Dias em atraso: {resumo.diasEmAtraso}</span>
+                      </div>
+                      <div className="grid gap-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                        <span>Último pagamento: {formatarData(resumo.pagamento?.data_pagamento)}</span>
+                        <span className="normal-case tracking-normal text-xs font-medium text-zinc-400">{resumo.pagamento?.observacoes ?? "Sem observação"}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 xl:justify-end">
+                        <button onClick={() => atualizarStatusPagamento(resumo, "pago")} disabled={!podeMarcarPago || atualizando} className="bg-green-500 text-black disabled:opacity-40 p-3 px-4 rounded-2xl text-[9px] font-black uppercase transition-all">Pago</button>
+                        <button onClick={() => atualizarStatusPagamento(resumo, "aberto")} disabled={!podeMarcarAberto || atualizando} className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 p-3 px-4 rounded-2xl text-[9px] font-black uppercase transition-all">Aberto</button>
+                        <button onClick={() => atualizarStatusPagamento(resumo, "cancelado")} disabled={!podeCancelar || atualizando} className="bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white disabled:opacity-40 p-3 px-4 rounded-2xl text-[9px] font-black uppercase transition-all">Cancelar</button>
+                      </div>
                     </article>
                   );
                 })}

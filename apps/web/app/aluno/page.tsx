@@ -6,7 +6,7 @@ import { categoriasGraduacao, faixaCompativelComCategoria, faixasPorCategoria } 
 import { supabase } from '@/lib/supabase';
 import type { Aluno, CategoriaGraduacao, FaixaGraduacao, GraduacaoSolicitacao } from '@/lib/types';
 
-const alunoColumns = 'id,user_id,nome,email,categoria,faixa,grau,graus,pago,vencimento,presencas,telefone,data_nascimento,observacoes';
+const alunoColumns = 'id,user_id,nome,email,categoria,faixa,grau,graus,graduacao_aprovada,pago,vencimento,presencas,telefone,data_nascimento,observacoes';
 const graduacaoSolicitacoesColumns = 'id,aluno_id,user_id,categoria,faixa,graus,data_ultima_graduacao,academia_origem,professor_graduador,observacoes,status,analisado_por,analisado_em,created_at,updated_at';
 
 type GraduacaoForm = {
@@ -124,7 +124,7 @@ export default function AreaAluno() {
 
   async function enviarSolicitacaoGraduacao(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!aluno || solicitacaoPendente) return;
+    if (!aluno || solicitacaoPendente || aluno.graduacao_aprovada) return;
 
     const erroValidacao = validarGraduacao();
     if (erroValidacao) {
@@ -225,12 +225,33 @@ export default function AreaAluno() {
         <section className="bg-zinc-900 border border-zinc-800 rounded-[40px] p-8 shadow-2xl">
           <div className="mb-5">
             <h2 className="text-2xl font-black uppercase italic">Minha Graduação</h2>
-            <p className="mt-1 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Envie para análise do mestre</p>
+            <p className="mt-1 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Graduação oficial</p>
           </div>
 
-          {solicitacaoPendente ? (
+          {aluno.graduacao_aprovada ? (
+            <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5 space-y-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-green-400">Graduação aprovada</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Categoria</p>
+                  <p className="mt-1 text-sm font-black uppercase">{aluno.categoria}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Faixa</p>
+                  <p className="mt-1 text-sm font-black uppercase">{aluno.faixa}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Graus</p>
+                  <p className="mt-1 text-sm font-black">{aluno.graus ?? aluno.grau ?? 0}</p>
+                </div>
+              </div>
+              <p className="text-xs leading-5 text-zinc-400">
+                Sua graduação já foi aprovada. Novas alterações de grau ou faixa serão feitas pela equipe da ROXBJJ PLANALTO.
+              </p>
+            </div>
+          ) : solicitacaoPendente ? (
             <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5 space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-yellow-400">Solicitação pendente</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-yellow-400">Em análise pelo mestre</p>
               <p className="text-sm font-bold uppercase">Categoria {solicitacaoPendente.categoria} • Faixa {solicitacaoPendente.faixa} • {solicitacaoPendente.graus} graus</p>
               <p className="text-xs leading-5 text-zinc-400">Sua graduação foi enviada para análise do mestre.</p>
             </div>

@@ -16,7 +16,7 @@ type Mensagem = {
   texto: string;
 };
 
-const alunosColumns = "id,user_id,nome,email,categoria,faixa,grau,graus,pago,vencimento,presencas,telefone,data_nascimento,observacoes";
+const alunosColumns = "id,user_id,nome,email,categoria,faixa,grau,graus,graduacao_aprovada,pago,vencimento,presencas,telefone,data_nascimento,observacoes";
 const graduacaoSolicitacoesColumns = "id,aluno_id,user_id,categoria,faixa,graus,data_ultima_graduacao,academia_origem,professor_graduador,observacoes,status,analisado_por,analisado_em,created_at,updated_at";
 const faixas: Faixa[] = ["branca", "azul", "roxa", "marrom", "preta"];
 const itensPorPagina = 6;
@@ -79,6 +79,7 @@ function montarPayload(form: AlunoFormValues): AlunoInsert {
     faixa: form.faixa,
     grau: Number(form.grau),
     graus: Number(form.grau),
+    graduacao_aprovada: true,
     pago: form.pago,
     vencimento: Number(form.vencimento),
     presencas: Number(form.presencas),

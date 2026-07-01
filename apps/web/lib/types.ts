@@ -26,6 +26,7 @@ export type Aluno = {
   faixa: FaixaGraduacao;
   grau: number;
   graus: number;
+  graduacao_aprovada: boolean;
   pago: boolean;
   vencimento: number;
   presencas: number;
@@ -44,6 +45,7 @@ export type AlunoInsert = {
   faixa: FaixaGraduacao;
   grau: number;
   graus: number;
+  graduacao_aprovada?: boolean;
   pago: boolean;
   vencimento: number;
   presencas: number;

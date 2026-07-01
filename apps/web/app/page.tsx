@@ -109,9 +109,12 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="text-center">
-          <Link href="/cadastro" className="text-sm font-black uppercase tracking-widest text-red-600 hover:text-red-700">
-            Sou aluno, quero me cadastrar
+        <div className="space-y-3 text-center">
+          <Link href="/cadastro" className="block text-sm font-black uppercase tracking-widest text-red-600 hover:text-red-700">
+            Ainda não treina conosco? Sou aluno novo, quero me cadastrar
+          </Link>
+          <Link href="/" className="block text-xs font-bold text-gray-500 hover:text-gray-900">
+            Já tenho cadastro, quero entrar
           </Link>
         </div>
 

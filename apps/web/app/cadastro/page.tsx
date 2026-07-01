@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Loader2, Lock, Mail, Phone, User } from "lucide-react";
+import { AlertCircle, CalendarDays, Loader2, Lock, Mail, Phone, User } from "lucide-react";
 import { genericAuthError, logClientError } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 
@@ -13,6 +13,7 @@ type CadastroForm = {
   senha: string;
   telefone: string;
   dataNascimento: string;
+  diaVencimentoPagamento: string;
   observacoes: string;
 };
 
@@ -22,6 +23,7 @@ const formInicial: CadastroForm = {
   senha: "",
   telefone: "",
   dataNascimento: "",
+  diaVencimentoPagamento: "10",
   observacoes: "",
 };
 
@@ -29,6 +31,7 @@ function validarCadastro(form: CadastroForm) {
   if (form.nome.trim().length < 3) return "Informe seu nome completo.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return "Informe um e-mail válido.";
   if (form.senha.length < 6) return "A senha deve ter pelo menos 6 caracteres.";
+  if (![5, 10, 15, 20, 25].includes(Number(form.diaVencimentoPagamento))) return "Escolha um dia de vencimento válido.";
   return null;
 }
 
@@ -58,6 +61,7 @@ export default function CadastroAlunoPage() {
 
     try {
       const email = form.email.trim().toLowerCase();
+      const diaVencimentoPagamento = Number(form.diaVencimentoPagamento) || 10;
       const { data, error } = await supabase.auth.signUp({
         email,
         password: form.senha,
@@ -67,6 +71,7 @@ export default function CadastroAlunoPage() {
             nome: form.nome.trim(),
             telefone: form.telefone.trim() || null,
             data_nascimento: form.dataNascimento || null,
+            dia_vencimento_pagamento: diaVencimentoPagamento,
             observacoes: form.observacoes.trim() || null,
           },
         },
@@ -161,6 +166,22 @@ export default function CadastroAlunoPage() {
             />
           </div>
 
+          <div className="relative">
+            <CalendarDays className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+            <select
+              value={form.diaVencimentoPagamento}
+              onChange={(event) => atualizarCampo("diaVencimentoPagamento", event.target.value)}
+              className="w-full appearance-none bg-gray-50 border border-gray-300 text-gray-900 rounded-lg py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+              aria-label="Dia de vencimento do pagamento"
+            >
+              <option value="5">Vencimento dia 5</option>
+              <option value="10">Vencimento dia 10</option>
+              <option value="15">Vencimento dia 15</option>
+              <option value="20">Vencimento dia 20</option>
+              <option value="25">Vencimento dia 25</option>
+            </select>
+          </div>
+
           <textarea
             value={form.observacoes}
             onChange={(event) => atualizarCampo("observacoes", event.target.value)}
@@ -192,7 +213,7 @@ export default function CadastroAlunoPage() {
 
         <div className="text-center">
           <Link href="/" className="text-sm font-bold text-gray-500 hover:text-gray-900">
-            Já tenho cadastro
+            Já tenho cadastro, quero entrar
           </Link>
         </div>
       </main>

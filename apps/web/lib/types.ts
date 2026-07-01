@@ -1,13 +1,31 @@
 export type Faixa = "branca" | "azul" | "roxa" | "marrom" | "preta";
 export type AppRole = "admin" | "professor" | "aluno" | "responsavel";
+export type CategoriaGraduacao = "infantil" | "juvenil" | "adulto";
+export type FaixaGraduacao =
+  | Faixa
+  | "cinza/branca"
+  | "cinza"
+  | "cinza/preta"
+  | "amarela/branca"
+  | "amarela"
+  | "amarela/preta"
+  | "laranja/branca"
+  | "laranja"
+  | "laranja/preta"
+  | "verde/branca"
+  | "verde"
+  | "verde/preta";
+export type GraduacaoStatus = "pendente" | "aprovada" | "recusada";
 
 export type Aluno = {
   id: string;
   user_id: string;
   nome: string;
   email: string;
-  faixa: Faixa;
+  categoria: CategoriaGraduacao;
+  faixa: FaixaGraduacao;
   grau: number;
+  graus: number;
   pago: boolean;
   vencimento: number;
   presencas: number;
@@ -22,8 +40,10 @@ export type AlunoInsert = {
   user_id: string;
   nome: string;
   email: string;
-  faixa: Faixa;
+  categoria: CategoriaGraduacao;
+  faixa: FaixaGraduacao;
   grau: number;
+  graus: number;
   pago: boolean;
   vencimento: number;
   presencas: number;
@@ -33,6 +53,50 @@ export type AlunoInsert = {
 };
 
 export type AlunoUpdate = Partial<AlunoInsert>;
+
+export type GraduacaoSolicitacao = {
+  id: string;
+  aluno_id: string;
+  user_id: string;
+  categoria: CategoriaGraduacao;
+  faixa: FaixaGraduacao;
+  graus: number;
+  data_ultima_graduacao?: string | null;
+  academia_origem?: string | null;
+  professor_graduador?: string | null;
+  observacoes?: string | null;
+  status: GraduacaoStatus;
+  analisado_por?: string | null;
+  analisado_em?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type GraduacaoSolicitacaoInsert = {
+  aluno_id: string;
+  user_id: string;
+  categoria: CategoriaGraduacao;
+  faixa: FaixaGraduacao;
+  graus: number;
+  data_ultima_graduacao?: string | null;
+  academia_origem?: string | null;
+  professor_graduador?: string | null;
+  observacoes?: string | null;
+};
+
+export type GraduacaoHistorico = {
+  id: string;
+  aluno_id: string;
+  solicitacao_id?: string | null;
+  categoria: CategoriaGraduacao;
+  faixa: FaixaGraduacao;
+  graus: number;
+  data_graduacao?: string | null;
+  origem: "solicitacao_aprovada" | "admin";
+  aprovado_por?: string | null;
+  observacoes?: string | null;
+  created_at?: string;
+};
 
 export type ResponsavelAluno = {
   responsavel_id: string;
@@ -68,6 +132,18 @@ export type Database = {
         Update: AlunoUpdate;
         Relationships: [];
       };
+      graduacao_solicitacoes: {
+        Row: GraduacaoSolicitacao;
+        Insert: GraduacaoSolicitacaoInsert;
+        Update: Partial<Omit<GraduacaoSolicitacao, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
+      };
+      graduacao_historico: {
+        Row: GraduacaoHistorico;
+        Insert: Omit<GraduacaoHistorico, "id" | "created_at">;
+        Update: Partial<Omit<GraduacaoHistorico, "id" | "created_at">>;
+        Relationships: [];
+      };
       responsavel_alunos: {
         Row: ResponsavelAluno;
         Insert: ResponsavelAlunoInsert;
@@ -90,6 +166,18 @@ export type Database = {
       is_responsavel: {
         Args: Record<string, never>;
         Returns: boolean;
+      };
+      aprovar_graduacao_solicitacao: {
+        Args: {
+          p_solicitacao_id: string;
+        };
+        Returns: null;
+      };
+      recusar_graduacao_solicitacao: {
+        Args: {
+          p_solicitacao_id: string;
+        };
+        Returns: null;
       };
     };
     Enums: {

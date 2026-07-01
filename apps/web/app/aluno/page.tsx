@@ -2,15 +2,41 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { genericLoadError, genericSaveError, getCurrentProfile, getHomeRouteForRole, logClientError } from '@/lib/auth';
+import { categoriasGraduacao, faixaCompativelComCategoria, faixasPorCategoria } from '@/lib/graduacao';
 import { supabase } from '@/lib/supabase';
-import type { Aluno } from '@/lib/types';
+import type { Aluno, CategoriaGraduacao, FaixaGraduacao, GraduacaoSolicitacao } from '@/lib/types';
 
-const alunoColumns = 'id,user_id,nome,email,faixa,grau,pago,vencimento,presencas,telefone,data_nascimento,observacoes';
+const alunoColumns = 'id,user_id,nome,email,categoria,faixa,grau,graus,pago,vencimento,presencas,telefone,data_nascimento,observacoes';
+const graduacaoSolicitacoesColumns = 'id,aluno_id,user_id,categoria,faixa,graus,data_ultima_graduacao,academia_origem,professor_graduador,observacoes,status,analisado_por,analisado_em,created_at,updated_at';
+
+type GraduacaoForm = {
+  categoria: CategoriaGraduacao;
+  faixa: FaixaGraduacao;
+  graus: string;
+  data_ultima_graduacao: string;
+  academia_origem: string;
+  professor_graduador: string;
+  observacoes: string;
+};
+
+const graduacaoFormInicial: GraduacaoForm = {
+  categoria: "adulto",
+  faixa: "branca",
+  graus: "0",
+  data_ultima_graduacao: "",
+  academia_origem: "",
+  professor_graduador: "",
+  observacoes: "",
+};
 
 export default function AreaAluno() {
   const [aluno, setAluno] = useState<Aluno | null>(null);
+  const [solicitacaoPendente, setSolicitacaoPendente] = useState<GraduacaoSolicitacao | null>(null);
+  const [graduacaoForm, setGraduacaoForm] = useState<GraduacaoForm>(graduacaoFormInicial);
   const [carregando, setCarregando] = useState(true);
+  const [salvandoGraduacao, setSalvandoGraduacao] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [mensagemGraduacao, setMensagemGraduacao] = useState<string | null>(null);
   const router = useRouter();
 
   const carregarDados = useCallback(async () => {
@@ -33,6 +59,29 @@ export default function AreaAluno() {
     }
 
     setAluno(data ?? null);
+
+    if (data) {
+      setGraduacaoForm((atual) => ({
+        ...atual,
+        categoria: data.categoria ?? "adulto",
+        faixa: faixaCompativelComCategoria(data.categoria ?? "adulto", data.faixa) ? data.faixa : "branca",
+        graus: String(data.graus ?? data.grau ?? 0),
+      }));
+
+      const { data: solicitacao, error: solicitacaoError } = await supabase
+        .from('graduacao_solicitacoes')
+        .select(graduacaoSolicitacoesColumns)
+        .eq('aluno_id', data.id)
+        .eq('status', 'pendente')
+        .maybeSingle();
+
+      if (solicitacaoError) {
+        logClientError("Failed to load pending graduation request", solicitacaoError);
+      }
+
+      setSolicitacaoPendente(solicitacao ?? null);
+    }
+
     setCarregando(false);
   }, [router]);
 
@@ -50,6 +99,64 @@ export default function AreaAluno() {
 
     alert("Check-in efetuado! Bom treino!");
     await carregarDados();
+  }
+
+  function atualizarGraduacao<K extends keyof GraduacaoForm>(campo: K, valor: GraduacaoForm[K]) {
+    setGraduacaoForm((atual) => {
+      if (campo === "categoria") {
+        const categoria = valor as CategoriaGraduacao;
+        const faixaAtual = faixaCompativelComCategoria(categoria, atual.faixa) ? atual.faixa : faixasPorCategoria[categoria][0];
+        return { ...atual, categoria, faixa: faixaAtual };
+      }
+
+      return { ...atual, [campo]: valor };
+    });
+  }
+
+  function validarGraduacao() {
+    const graus = Number(graduacaoForm.graus);
+
+    if (!categoriasGraduacao.includes(graduacaoForm.categoria)) return "Informe uma categoria válida.";
+    if (!faixaCompativelComCategoria(graduacaoForm.categoria, graduacaoForm.faixa)) return "A faixa deve ser compatível com a categoria.";
+    if (!Number.isInteger(graus) || graus < 0 || graus > 4) return "Os graus devem estar entre 0 e 4.";
+    return null;
+  }
+
+  async function enviarSolicitacaoGraduacao(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!aluno || solicitacaoPendente) return;
+
+    const erroValidacao = validarGraduacao();
+    if (erroValidacao) {
+      setMensagemGraduacao(erroValidacao);
+      return;
+    }
+
+    setSalvandoGraduacao(true);
+    setMensagemGraduacao(null);
+
+    const { error } = await supabase.from('graduacao_solicitacoes').insert({
+      aluno_id: aluno.id,
+      user_id: aluno.user_id,
+      categoria: graduacaoForm.categoria,
+      faixa: graduacaoForm.faixa,
+      graus: Number(graduacaoForm.graus),
+      data_ultima_graduacao: graduacaoForm.data_ultima_graduacao || null,
+      academia_origem: graduacaoForm.academia_origem.trim() || null,
+      professor_graduador: graduacaoForm.professor_graduador.trim() || null,
+      observacoes: graduacaoForm.observacoes.trim() || null,
+    });
+
+    if (error) {
+      logClientError("Failed to create graduation request", error);
+      setMensagemGraduacao(genericSaveError);
+      setSalvandoGraduacao(false);
+      return;
+    }
+
+    setMensagemGraduacao("Sua graduação foi enviada para análise do mestre.");
+    await carregarDados();
+    setSalvandoGraduacao(false);
   }
 
   if (carregando) {
@@ -96,14 +203,15 @@ export default function AreaAluno() {
           <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4">Graduação Atual</p>
           <div className="flex items-end justify-between mb-4">
             <h3 className="text-4xl font-black italic uppercase italic">Faixa {aluno.faixa}</h3>
-            <span className="text-zinc-500 font-black text-xs italic">{aluno.presencas || 0} TREINOS</span>
+            <span className="text-zinc-500 font-black text-xs italic">{aluno.graus ?? aluno.grau ?? 0} GRAUS</span>
           </div>
+          <p className="mb-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Categoria {aluno.categoria}</p>
           
           <div className="flex gap-1 h-10 w-full bg-zinc-800 rounded-xl overflow-hidden border-2 border-black shadow-inner">
              <div className={`flex-1 ${aluno.faixa.toLowerCase() === 'branca' ? 'bg-zinc-200' : aluno.faixa.toLowerCase() === 'azul' ? 'bg-blue-600' : 'bg-purple-700'}`} />
              <div className="w-16 bg-black flex items-center justify-center gap-1 px-1">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className={`h-6 w-1.5 rounded-full ${i < (aluno.grau || 0) ? 'bg-white shadow-[0_0_8px_white]' : 'bg-zinc-800'}`} />
+                  <div key={i} className={`h-6 w-1.5 rounded-full ${i < (aluno.graus ?? aluno.grau ?? 0) ? 'bg-white shadow-[0_0_8px_white]' : 'bg-zinc-800'}`} />
                 ))}
              </div>
              <div className={`w-3 ${aluno.faixa.toLowerCase() === 'branca' ? 'bg-zinc-200' : aluno.faixa.toLowerCase() === 'azul' ? 'bg-blue-600' : 'bg-purple-700'}`} />
@@ -113,6 +221,51 @@ export default function AreaAluno() {
             Seu cadastro foi criado. A equipe da ROXBJJ PLANALTO poderá complementar seus dados.
           </p>
         </div>
+
+        <section className="bg-zinc-900 border border-zinc-800 rounded-[40px] p-8 shadow-2xl">
+          <div className="mb-5">
+            <h2 className="text-2xl font-black uppercase italic">Minha Graduação</h2>
+            <p className="mt-1 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Envie para análise do mestre</p>
+          </div>
+
+          {solicitacaoPendente ? (
+            <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5 space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-yellow-400">Solicitação pendente</p>
+              <p className="text-sm font-bold uppercase">Categoria {solicitacaoPendente.categoria} • Faixa {solicitacaoPendente.faixa} • {solicitacaoPendente.graus} graus</p>
+              <p className="text-xs leading-5 text-zinc-400">Sua graduação foi enviada para análise do mestre.</p>
+            </div>
+          ) : (
+            <form onSubmit={enviarSolicitacaoGraduacao} className="grid gap-3">
+              <select value={graduacaoForm.categoria} onChange={(event) => atualizarGraduacao("categoria", event.target.value as CategoriaGraduacao)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none">
+                <option value="infantil">Infantil</option>
+                <option value="juvenil">Juvenil</option>
+                <option value="adulto">Adulto</option>
+              </select>
+
+              <div className="grid grid-cols-2 gap-3">
+                <select value={graduacaoForm.faixa} onChange={(event) => atualizarGraduacao("faixa", event.target.value as FaixaGraduacao)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none">
+                  {faixasPorCategoria[graduacaoForm.categoria].map((faixa) => <option key={faixa} value={faixa}>Faixa {faixa}</option>)}
+                </select>
+                <input type="number" min={0} max={4} value={graduacaoForm.graus} onChange={(event) => atualizarGraduacao("graus", event.target.value)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Graus" />
+              </div>
+
+              <input type="date" value={graduacaoForm.data_ultima_graduacao} onChange={(event) => atualizarGraduacao("data_ultima_graduacao", event.target.value)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" aria-label="Data da última graduação" />
+              <input value={graduacaoForm.academia_origem} onChange={(event) => atualizarGraduacao("academia_origem", event.target.value)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Academia de origem" />
+              <input value={graduacaoForm.professor_graduador} onChange={(event) => atualizarGraduacao("professor_graduador", event.target.value)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Professor que graduou" />
+              <textarea value={graduacaoForm.observacoes} onChange={(event) => atualizarGraduacao("observacoes", event.target.value)} className="min-h-20 resize-none bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Observações opcionais" />
+
+              {mensagemGraduacao && (
+                <div className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-xs font-bold text-zinc-300">
+                  {mensagemGraduacao}
+                </div>
+              )}
+
+              <button disabled={salvandoGraduacao} className="bg-red-600 hover:bg-red-700 disabled:opacity-50 p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest">
+                {salvandoGraduacao ? "Enviando..." : "Enviar graduação para análise"}
+              </button>
+            </form>
+          )}
+        </section>
 
         {/* CHECK-IN */}
         <button onClick={handleCheckIn} className="w-full bg-red-600 py-8 rounded-[40px] flex flex-col items-center justify-center shadow-xl shadow-red-600/20 active:scale-95 transition-all">

@@ -6,7 +6,7 @@ import { genericAuthError, genericLoadError, getCurrentProfile, getHomeRouteForR
 import { supabase } from "@/lib/supabase";
 import type { Aluno } from "@/lib/types";
 
-const alunoColumns = "id,user_id,nome,email,faixa,grau,pago,vencimento,presencas";
+const alunoColumns = "id,user_id,nome,email,categoria,faixa,grau,graus,pago,vencimento,presencas";
 
 export default function AreaResponsavel() {
   const [carregando, setCarregando] = useState(true);

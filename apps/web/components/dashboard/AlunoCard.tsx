@@ -20,7 +20,7 @@ export function AlunoCard({ aluno, responsavelId, onAtualizarGrau, onEditar, onE
             {aluno.pago ? "PAGO" : "PENDENTE"}
           </span>
         </div>
-        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Faixa {aluno.faixa} • {aluno.grau} Graus • Vence dia {aluno.vencimento} • {aluno.presencas ?? 0} treinos</p>
+        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Categoria {aluno.categoria} • Faixa {aluno.faixa} • {aluno.graus ?? aluno.grau} Graus • Vence dia {aluno.vencimento} • {aluno.presencas ?? 0} treinos</p>
         <p className="text-[10px] text-zinc-600 font-bold mt-1">{aluno.email}</p>
         {aluno.telefone && <p className="text-[10px] text-zinc-600 font-bold mt-1">{aluno.telefone}</p>}
         {responsavelId && (

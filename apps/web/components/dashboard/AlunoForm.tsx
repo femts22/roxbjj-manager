@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import type { Faixa } from "@/lib/types";
+import type { CategoriaGraduacao, FaixaGraduacao } from "@/lib/types";
 
 export type AlunoFormValues = {
   user_id: string;
@@ -11,7 +11,8 @@ export type AlunoFormValues = {
   telefone: string;
   data_nascimento: string;
   observacoes: string;
-  faixa: Faixa;
+  categoria: CategoriaGraduacao;
+  faixa: FaixaGraduacao;
   grau: string;
   pago: boolean;
   vencimento: string;
@@ -20,7 +21,7 @@ export type AlunoFormValues = {
 
 type AlunoFormProps = {
   alunoEmEdicao: string | null;
-  faixas: Faixa[];
+  faixas: FaixaGraduacao[];
   form: AlunoFormValues;
   salvando: boolean;
   onCancel: () => void;
@@ -60,7 +61,12 @@ export function AlunoForm({
         <input type="email" value={form.email} onChange={(event) => onChange("email", event.target.value)} className="md:col-span-2 bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="E-mail" />
         <input value={form.telefone} onChange={(event) => onChange("telefone", event.target.value)} className="md:col-span-2 bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Telefone" />
         <input type="date" value={form.data_nascimento} onChange={(event) => onChange("data_nascimento", event.target.value)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" aria-label="Data de nascimento" />
-        <select value={form.faixa} onChange={(event) => onChange("faixa", event.target.value as Faixa)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none">
+        <select value={form.categoria} onChange={(event) => onChange("categoria", event.target.value as CategoriaGraduacao)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none">
+          <option value="infantil">Infantil</option>
+          <option value="juvenil">Juvenil</option>
+          <option value="adulto">Adulto</option>
+        </select>
+        <select value={form.faixa} onChange={(event) => onChange("faixa", event.target.value as FaixaGraduacao)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none">
           {faixas.map((faixa) => <option key={faixa} value={faixa}>Faixa {faixa}</option>)}
         </select>
         <select value={form.pago ? "sim" : "nao"} onChange={(event) => onChange("pago", event.target.value === "sim")} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none">

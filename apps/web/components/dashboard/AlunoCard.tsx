@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { Aluno } from "@/lib/types";
 
 type AlunoCardProps = {
@@ -41,6 +42,7 @@ export function AlunoCard({ aluno, graduacaoStatus, responsavelId, onAtualizarGr
       </div>
 
       <div className="flex flex-wrap gap-2">
+        <Link href={`/dashboard/alunos?id=${aluno.id}`} className="bg-white text-black hover:bg-zinc-200 p-3 px-5 rounded-2xl text-[9px] font-black uppercase transition-all">Ver ficha</Link>
         <button onClick={() => onAtualizarGrau(aluno.id, aluno.grau)} className="bg-zinc-800 hover:bg-white hover:text-black p-3 px-5 rounded-2xl text-[9px] font-black transition-all">DAR GRAU</button>
         {onEditar && <button onClick={() => onEditar(aluno)} className="bg-zinc-800 hover:bg-zinc-700 p-3 px-5 rounded-2xl text-[9px] font-black uppercase transition-all">Editar</button>}
         {onExcluir && <button onClick={() => onExcluir(aluno)} className="bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white p-3 px-5 rounded-2xl text-[9px] font-black uppercase transition-all">Excluir</button>}

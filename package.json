@@ -14,5 +14,8 @@
     "supabase:reset": "supabase db reset",
     "supabase:status": "supabase status",
     "supabase:env": "node scripts/generate-supabase-env.mjs"
+  },
+  "devDependencies": {
+    "supabase": "^2.108.0"
   }
 }

@@ -8,6 +8,9 @@ export type AlunoFormValues = {
   responsavel_user_id: string;
   nome: string;
   email: string;
+  telefone: string;
+  data_nascimento: string;
+  observacoes: string;
   faixa: Faixa;
   grau: string;
   pago: boolean;
@@ -55,6 +58,8 @@ export function AlunoForm({
         <input disabled={!canManage} value={form.responsavel_user_id} onChange={(event) => onChange("responsavel_user_id", event.target.value)} className="md:col-span-3 bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none disabled:opacity-50" placeholder="User ID do responsável (opcional)" />
         <input value={form.nome} onChange={(event) => onChange("nome", event.target.value)} className="md:col-span-2 bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Nome" />
         <input type="email" value={form.email} onChange={(event) => onChange("email", event.target.value)} className="md:col-span-2 bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="E-mail" />
+        <input value={form.telefone} onChange={(event) => onChange("telefone", event.target.value)} className="md:col-span-2 bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Telefone" />
+        <input type="date" value={form.data_nascimento} onChange={(event) => onChange("data_nascimento", event.target.value)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" aria-label="Data de nascimento" />
         <select value={form.faixa} onChange={(event) => onChange("faixa", event.target.value as Faixa)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none">
           {faixas.map((faixa) => <option key={faixa} value={faixa}>Faixa {faixa}</option>)}
         </select>
@@ -65,6 +70,7 @@ export function AlunoForm({
         <input type="number" min={0} max={4} value={form.grau} onChange={(event) => onChange("grau", event.target.value)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Grau" />
         <input type="number" min={1} max={31} value={form.vencimento} onChange={(event) => onChange("vencimento", event.target.value)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Vencimento" />
         <input type="number" min={0} value={form.presencas} onChange={(event) => onChange("presencas", event.target.value)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Presenças" />
+        <textarea value={form.observacoes} onChange={(event) => onChange("observacoes", event.target.value)} className="md:col-span-3 min-h-12 resize-none bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Observações" />
         <button disabled={salvando || !canManage} className="md:col-span-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 p-3 px-5 rounded-2xl text-[10px] font-black uppercase transition-all">
           {salvando ? "Salvando..." : alunoEmEdicao ? "Salvar edição" : "Cadastrar aluno"}
         </button>

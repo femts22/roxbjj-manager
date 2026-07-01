@@ -11,6 +11,9 @@ export type Aluno = {
   pago: boolean;
   vencimento: number;
   presencas: number;
+  telefone?: string | null;
+  data_nascimento?: string | null;
+  observacoes?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -24,6 +27,9 @@ export type AlunoInsert = {
   pago: boolean;
   vencimento: number;
   presencas: number;
+  telefone?: string | null;
+  data_nascimento?: string | null;
+  observacoes?: string | null;
 };
 
 export type AlunoUpdate = Partial<AlunoInsert>;

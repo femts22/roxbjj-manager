@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { genericAuthError, getCurrentProfile, getHomeRouteForRole, logClientError } from '@/lib/auth';
@@ -107,6 +108,12 @@ export default function LoginPage() {
             )}
           </button>
         </form>
+
+        <div className="text-center">
+          <Link href="/cadastro" className="text-sm font-black uppercase tracking-widest text-red-600 hover:text-red-700">
+            Sou aluno, quero me cadastrar
+          </Link>
+        </div>
 
         <div className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest">
           ROXBJJ PLANALTO © 2026 - Gestão de Elite

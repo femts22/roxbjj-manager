@@ -15,7 +15,7 @@ type Mensagem = {
   texto: string;
 };
 
-const alunosColumns = "id,user_id,nome,email,faixa,grau,pago,vencimento,presencas";
+const alunosColumns = "id,user_id,nome,email,faixa,grau,pago,vencimento,presencas,telefone,data_nascimento,observacoes";
 const faixas: Faixa[] = ["branca", "azul", "roxa", "marrom", "preta"];
 const itensPorPagina = 6;
 
@@ -24,6 +24,9 @@ const formInicial: AlunoFormValues = {
   responsavel_user_id: "",
   nome: "",
   email: "",
+  telefone: "",
+  data_nascimento: "",
+  observacoes: "",
   faixa: "branca",
   grau: "0",
   pago: false,
@@ -65,6 +68,9 @@ function montarPayload(form: AlunoFormValues): AlunoInsert {
     user_id: form.user_id.trim(),
     nome: form.nome.trim(),
     email: form.email.trim().toLowerCase(),
+    telefone: form.telefone.trim() || null,
+    data_nascimento: form.data_nascimento || null,
+    observacoes: form.observacoes.trim() || null,
     faixa: form.faixa,
     grau: Number(form.grau),
     pago: form.pago,
@@ -79,6 +85,9 @@ function alunoParaForm(aluno: Aluno, responsavelId?: string): AlunoFormValues {
     responsavel_user_id: responsavelId ?? "",
     nome: aluno.nome,
     email: aluno.email,
+    telefone: aluno.telefone ?? "",
+    data_nascimento: aluno.data_nascimento ?? "",
+    observacoes: aluno.observacoes ?? "",
     faixa: aluno.faixa,
     grau: String(aluno.grau),
     pago: aluno.pago,

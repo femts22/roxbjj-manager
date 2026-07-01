@@ -5,14 +5,18 @@ import { genericLoadError, genericSaveError, getCurrentProfile, getHomeRouteForR
 import { supabase } from '@/lib/supabase';
 import type { Aluno } from '@/lib/types';
 
-const alunoColumns = 'id,user_id,nome,email,faixa,grau,pago,vencimento,presencas';
+const alunoColumns = 'id,user_id,nome,email,faixa,grau,pago,vencimento,presencas,telefone,data_nascimento,observacoes';
 
 export default function AreaAluno() {
   const [aluno, setAluno] = useState<Aluno | null>(null);
+  const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const router = useRouter();
 
   const carregarDados = useCallback(async () => {
+    setCarregando(true);
+    setErro(null);
+
     const profile = await getCurrentProfile();
     if (!profile) return router.push('/');
 
@@ -24,10 +28,12 @@ export default function AreaAluno() {
     if (error) {
       logClientError("Failed to load student area", error);
       setErro(genericLoadError);
+      setCarregando(false);
       return;
     }
 
-    if (data) setAluno(data);
+    setAluno(data ?? null);
+    setCarregando(false);
   }, [router]);
 
   useEffect(() => { void carregarDados(); }, [carregarDados]);
@@ -46,7 +52,30 @@ export default function AreaAluno() {
     await carregarDados();
   }
 
-  if (!aluno) return <div className="min-h-screen bg-black text-white flex items-center justify-center font-black uppercase italic animate-pulse">{erro ?? "A carregar tatame..."}</div>;
+  if (carregando) {
+    return <div className="min-h-screen bg-black text-white flex items-center justify-center font-black uppercase italic animate-pulse">A carregar tatame...</div>;
+  }
+
+  if (!aluno) {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-white p-6">
+        <main className="max-w-md mx-auto min-h-[calc(100vh-3rem)] flex flex-col justify-center gap-6">
+          <header className="flex justify-between items-center">
+            <h2 className="text-xl font-black italic tracking-tighter">ROXBJJ <span className="text-red-600">PLANALTO</span></h2>
+            <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="bg-zinc-900 p-2 px-4 rounded-full text-[10px] font-black border border-zinc-800">SAIR</button>
+          </header>
+
+          <section className="bg-zinc-900 border border-zinc-800 rounded-[32px] p-6 space-y-3">
+            <h1 className="text-2xl font-black uppercase italic">Cadastro criado</h1>
+            <p className="text-sm leading-6 text-zinc-300">
+              Seu cadastro foi criado. A equipe da ROXBJJ PLANALTO poderá complementar seus dados.
+            </p>
+            {erro && <p className="text-sm font-bold text-red-400">{erro}</p>}
+          </section>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-6 pb-12">
@@ -58,6 +87,12 @@ export default function AreaAluno() {
 
         {/* BOX GRADUAÇÃO */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-[40px] p-8 shadow-2xl">
+          <div className="mb-6">
+            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Aluno</p>
+            <h1 className="text-2xl font-black uppercase italic">{aluno.nome}</h1>
+            <p className="mt-1 text-[10px] font-bold text-zinc-500">{aluno.email}</p>
+            {aluno.telefone && <p className="mt-1 text-[10px] font-bold text-zinc-500">{aluno.telefone}</p>}
+          </div>
           <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4">Graduação Atual</p>
           <div className="flex items-end justify-between mb-4">
             <h3 className="text-4xl font-black italic uppercase italic">Faixa {aluno.faixa}</h3>
@@ -73,6 +108,10 @@ export default function AreaAluno() {
              </div>
              <div className={`w-3 ${aluno.faixa.toLowerCase() === 'branca' ? 'bg-zinc-200' : aluno.faixa.toLowerCase() === 'azul' ? 'bg-blue-600' : 'bg-purple-700'}`} />
           </div>
+
+          <p className="mt-6 text-xs font-bold leading-5 text-zinc-400">
+            Seu cadastro foi criado. A equipe da ROXBJJ PLANALTO poderá complementar seus dados.
+          </p>
         </div>
 
         {/* CHECK-IN */}

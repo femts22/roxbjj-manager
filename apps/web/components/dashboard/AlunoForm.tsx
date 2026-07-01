@@ -16,6 +16,7 @@ export type AlunoFormValues = {
   grau: string;
   pago: boolean;
   vencimento: string;
+  dia_vencimento_pagamento: string;
   presencas: string;
 };
 
@@ -75,6 +76,7 @@ export function AlunoForm({
         </select>
         <input type="number" min={0} max={4} value={form.grau} onChange={(event) => onChange("grau", event.target.value)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Grau" />
         <input type="number" min={1} max={31} value={form.vencimento} onChange={(event) => onChange("vencimento", event.target.value)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Vencimento" />
+        <input type="number" min={1} max={31} value={form.dia_vencimento_pagamento} onChange={(event) => onChange("dia_vencimento_pagamento", event.target.value)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Dia pagamento" />
         <input type="number" min={0} value={form.presencas} onChange={(event) => onChange("presencas", event.target.value)} className="bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Presenças" />
         <textarea value={form.observacoes} onChange={(event) => onChange("observacoes", event.target.value)} className="md:col-span-3 min-h-12 resize-none bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none" placeholder="Observações" />
         <button disabled={salvando || !canManage} className="md:col-span-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 p-3 px-5 rounded-2xl text-[10px] font-black uppercase transition-all">

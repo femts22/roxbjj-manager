@@ -9,17 +9,30 @@ import { PaginationControls } from "@/components/dashboard/PaginationControls";
 import { canAccessDashboard, canManageAlunos, genericLoadError, genericSaveError, getCurrentProfile, getHomeRouteForRole, logClientError } from "@/lib/auth";
 import { faixaCompativelComCategoria, faixasPorCategoria } from "@/lib/graduacao";
 import { supabase } from "@/lib/supabase";
-import type { Aluno, AlunoInsert, AlunoUpdate, AppRole, CategoriaGraduacao, Faixa, GraduacaoSolicitacao } from "@/lib/types";
+import type { Aluno, AlunoInsert, AlunoUpdate, AppRole, CategoriaGraduacao, Faixa, GraduacaoSolicitacao, Pagamento, PagamentoVencimentoSolicitacao } from "@/lib/types";
 
 type Mensagem = {
   tipo: "sucesso" | "erro";
   texto: string;
 };
 
-const alunosColumns = "id,user_id,nome,email,categoria,faixa,grau,graus,graduacao_aprovada,pago,vencimento,presencas,telefone,data_nascimento,observacoes";
+type AdminTab = "atletas" | "cadastro" | "graduacoes" | "pagamentos";
+type GraduacaoCardStatus = "pendente" | "aprovada" | "sem_graduacao";
+type PagamentoResumoStatus = "pago" | "vence_em_breve" | "vencido" | "aberto";
+
+const alunosColumns = "id,user_id,nome,email,categoria,faixa,grau,graus,graduacao_aprovada,pago,vencimento,dia_vencimento_pagamento,presencas,telefone,data_nascimento,observacoes";
 const graduacaoSolicitacoesColumns = "id,aluno_id,user_id,categoria,faixa,graus,data_ultima_graduacao,academia_origem,professor_graduador,observacoes,status,analisado_por,analisado_em,created_at,updated_at";
+const pagamentosColumns = "id,aluno_id,valor,data_vencimento,data_pagamento,status,observacoes,created_at,updated_at";
+const vencimentoSolicitacoesColumns = "id,aluno_id,user_id,dia_atual,dia_solicitado,motivo,status,analisado_por,analisado_em,created_at,updated_at";
 const faixas: Faixa[] = ["branca", "azul", "roxa", "marrom", "preta"];
 const itensPorPagina = 6;
+
+const tabs: { id: AdminTab; label: string }[] = [
+  { id: "atletas", label: "Atletas" },
+  { id: "cadastro", label: "Cadastrar aluno" },
+  { id: "graduacoes", label: "Graduações pendentes" },
+  { id: "pagamentos", label: "Pagamentos" },
+];
 
 const formInicial: AlunoFormValues = {
   user_id: "",
@@ -34,6 +47,7 @@ const formInicial: AlunoFormValues = {
   grau: "0",
   pago: false,
   vencimento: "10",
+  dia_vencimento_pagamento: "10",
   presencas: "0",
 };
 
@@ -48,6 +62,7 @@ function validarFormulario(form: AlunoFormValues): string | null {
   const email = form.email.trim();
   const grau = Number(form.grau);
   const vencimento = Number(form.vencimento);
+  const diaVencimentoPagamento = Number(form.dia_vencimento_pagamento);
   const presencas = Number(form.presencas);
 
   if (!userId) return "Informe o User ID do usuário Auth do Supabase.";
@@ -62,6 +77,7 @@ function validarFormulario(form: AlunoFormValues): string | null {
   if (!faixaCompativelComCategoria(form.categoria, form.faixa)) return "A faixa deve ser compatível com a categoria.";
   if (!Number.isInteger(grau) || grau < 0 || grau > 4) return "O grau deve estar entre 0 e 4.";
   if (!Number.isInteger(vencimento) || vencimento < 1 || vencimento > 31) return "O vencimento deve estar entre 1 e 31.";
+  if (!Number.isInteger(diaVencimentoPagamento) || diaVencimentoPagamento < 1 || diaVencimentoPagamento > 31) return "O dia de vencimento do pagamento deve estar entre 1 e 31.";
   if (!Number.isInteger(presencas) || presencas < 0) return "As presenças devem ser um número inteiro positivo.";
 
   return null;
@@ -82,11 +98,14 @@ function montarPayload(form: AlunoFormValues): AlunoInsert {
     graduacao_aprovada: true,
     pago: form.pago,
     vencimento: Number(form.vencimento),
+    dia_vencimento_pagamento: Number(form.dia_vencimento_pagamento),
     presencas: Number(form.presencas),
   };
 }
 
 function alunoParaForm(aluno: Aluno, responsavelId?: string): AlunoFormValues {
+  const diaVencimentoPagamento = aluno.dia_vencimento_pagamento ?? aluno.vencimento;
+
   return {
     user_id: aluno.user_id ?? "",
     responsavel_user_id: responsavelId ?? "",
@@ -100,13 +119,56 @@ function alunoParaForm(aluno: Aluno, responsavelId?: string): AlunoFormValues {
     grau: String(aluno.graus ?? aluno.grau),
     pago: aluno.pago,
     vencimento: String(aluno.vencimento),
+    dia_vencimento_pagamento: String(diaVencimentoPagamento),
     presencas: String(aluno.presencas ?? 0),
   };
 }
 
+function formatarData(data?: string | null) {
+  if (!data) return "-";
+  return new Date(`${data}T00:00:00`).toLocaleDateString("pt-BR");
+}
+
+function diferencaDias(data: string) {
+  const hoje = new Date();
+  const vencimento = new Date(`${data}T00:00:00`);
+  hoje.setHours(0, 0, 0, 0);
+  return Math.ceil((vencimento.getTime() - hoje.getTime()) / 86400000);
+}
+
+function diaPagamentoAluno(aluno: Aluno) {
+  return aluno.dia_vencimento_pagamento ?? aluno.vencimento;
+}
+
+function calcularStatusPagamento(aluno: Aluno, ultimoPagamento?: Pagamento): PagamentoResumoStatus {
+  if (ultimoPagamento?.status === "pago" || aluno.pago) return "pago";
+  if (ultimoPagamento?.data_vencimento) {
+    const dias = diferencaDias(ultimoPagamento.data_vencimento);
+    if (dias < 0 || ultimoPagamento.status === "vencido") return "vencido";
+    if (dias <= 7) return "vence_em_breve";
+    return "aberto";
+  }
+
+  const hoje = new Date().getDate();
+  const dia = diaPagamentoAluno(aluno);
+  if (dia < hoje) return "vencido";
+  if (dia - hoje <= 7) return "vence_em_breve";
+  return "aberto";
+}
+
+const pagamentoStatusLabel: Record<PagamentoResumoStatus, string> = {
+  pago: "Pago",
+  vence_em_breve: "Vence em breve",
+  vencido: "Vencido/atrasado",
+  aberto: "Aberto",
+};
+
 export default function DashboardAdmin() {
+  const [activeTab, setActiveTab] = useState<AdminTab>("atletas");
   const [alunos, setAlunos] = useState<Aluno[]>([]);
   const [graduacoesPendentes, setGraduacoesPendentes] = useState<GraduacaoSolicitacao[]>([]);
+  const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
+  const [vencimentoSolicitacoes, setVencimentoSolicitacoes] = useState<PagamentoVencimentoSolicitacao[]>([]);
   const [responsaveisPorAluno, setResponsaveisPorAluno] = useState<Record<string, string>>({});
   const [form, setForm] = useState<AlunoFormValues>(formInicial);
   const [alunoEmEdicao, setAlunoEmEdicao] = useState<string | null>(null);
@@ -175,6 +237,37 @@ export default function DashboardAdmin() {
     setGraduacoesPendentes(data ?? []);
   }
 
+  async function carregarPagamentos() {
+    const { data, error } = await supabase
+      .from("pagamentos")
+      .select(pagamentosColumns)
+      .order("data_vencimento", { ascending: false });
+
+    if (error) {
+      logClientError("Failed to load payments", error);
+      setPagamentos([]);
+      return;
+    }
+
+    setPagamentos(data ?? []);
+  }
+
+  async function carregarSolicitacoesVencimento() {
+    const { data, error } = await supabase
+      .from("pagamento_vencimento_solicitacoes")
+      .select(vencimentoSolicitacoesColumns)
+      .eq("status", "pendente")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      logClientError("Failed to load due date requests", error);
+      setVencimentoSolicitacoes([]);
+      return;
+    }
+
+    setVencimentoSolicitacoes(data ?? []);
+  }
+
   useEffect(() => {
     let ativo = true;
 
@@ -196,6 +289,8 @@ export default function DashboardAdmin() {
       setRole(profile.role);
       await carregarAlunos();
       await carregarGraduacoesPendentes();
+      await carregarPagamentos();
+      await carregarSolicitacoesVencimento();
     }
 
     void inicializar();
@@ -209,15 +304,25 @@ export default function DashboardAdmin() {
     setPaginaAtual(1);
   }, [filtroPagamento, filtroFaixa, pesquisa]);
 
+  const graduacoesPendentesPorAluno = useMemo(() => new Set(graduacoesPendentes.map((solicitacao) => solicitacao.aluno_id)), [graduacoesPendentes]);
+
+  const ultimoPagamentoPorAluno = useMemo(() => {
+    return pagamentos.reduce<Map<string, Pagamento>>((mapa, pagamento) => {
+      if (!mapa.has(pagamento.aluno_id)) mapa.set(pagamento.aluno_id, pagamento);
+      return mapa;
+    }, new Map());
+  }, [pagamentos]);
+
   const alunosFiltrados = useMemo(() => {
     const diaAtual = new Date().getDate();
     const termo = normalizarTexto(pesquisa);
 
     return alunos.filter((aluno) => {
+      const diaVencimento = diaPagamentoAluno(aluno);
       const passaPagamento =
         filtroPagamento === "todos" ||
         (filtroPagamento === "pagos" && aluno.pago) ||
-        (filtroPagamento === "pendentes" && !aluno.pago && aluno.vencimento < diaAtual);
+        (filtroPagamento === "pendentes" && !aluno.pago && diaVencimento < diaAtual);
 
       const passaFaixa = filtroFaixa === "todas" || aluno.faixa === filtroFaixa;
       const passaPesquisa =
@@ -236,6 +341,12 @@ export default function DashboardAdmin() {
   useEffect(() => {
     setPaginaAtual((pagina) => Math.min(pagina, totalPaginas));
   }, [totalPaginas]);
+
+  function statusGraduacao(aluno: Aluno): GraduacaoCardStatus {
+    if (graduacoesPendentesPorAluno.has(aluno.id)) return "pendente";
+    if (aluno.graduacao_aprovada) return "aprovada";
+    return "sem_graduacao";
+  }
 
   function atualizarCampo<K extends keyof AlunoFormValues>(campo: K, valor: AlunoFormValues[K]) {
     setForm((atual) => {
@@ -258,6 +369,7 @@ export default function DashboardAdmin() {
     setForm(alunoParaForm(aluno, responsaveisPorAluno[aluno.id]));
     setAlunoEmEdicao(aluno.id);
     setMensagem(null);
+    setActiveTab("cadastro");
   }
 
   async function salvarVinculoResponsavel(alunoId: string, responsavelId: string) {
@@ -315,6 +427,7 @@ export default function DashboardAdmin() {
         setMensagem({ tipo: "sucesso", texto: "Aluno atualizado com sucesso." });
         limparFormulario();
         await carregarAlunos();
+        setActiveTab("atletas");
       }
     } else {
       const payload = montarPayload(form);
@@ -335,6 +448,7 @@ export default function DashboardAdmin() {
         setMensagem({ tipo: "sucesso", texto: "Aluno cadastrado com sucesso." });
         limparFormulario();
         await carregarAlunos();
+        setActiveTab("atletas");
       }
     }
 
@@ -384,6 +498,26 @@ export default function DashboardAdmin() {
     await carregarGraduacoesPendentes();
   }
 
+  async function analisarSolicitacaoVencimento(id: string, acao: "aprovar" | "recusar") {
+    if (!canManage) {
+      setMensagem({ tipo: "erro", texto: "Apenas administradores podem analisar vencimentos." });
+      return;
+    }
+
+    const fn = acao === "aprovar" ? "aprovar_pagamento_vencimento_solicitacao" : "recusar_pagamento_vencimento_solicitacao";
+    const { error } = await supabase.rpc(fn, { p_solicitacao_id: id });
+
+    if (error) {
+      logClientError("Failed to review due date request", error);
+      setMensagem({ tipo: "erro", texto: genericSaveError });
+      return;
+    }
+
+    setMensagem({ tipo: "sucesso", texto: acao === "aprovar" ? "Vencimento aprovado." : "Vencimento recusado." });
+    await carregarAlunos();
+    await carregarSolicitacoesVencimento();
+  }
+
   async function atualizarGrau(id: string) {
     const { error } = await supabase.rpc("atualizar_graduacao_aluno", { p_aluno_id: id });
 
@@ -399,103 +533,189 @@ export default function DashboardAdmin() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-6">
-      <header className="max-w-5xl mx-auto flex justify-between items-center mb-10">
+      <header className="max-w-6xl mx-auto flex flex-col gap-5 mb-8 md:flex-row md:items-center md:justify-between">
         <h2 className="text-2xl font-black italic uppercase">ROXBJJ <span className="text-red-600">PLANALTO</span></h2>
-        <div className="flex gap-4">
-          <button onClick={() => supabase.auth.signOut().then(() => router.push("/"))} className="bg-red-600 p-2 px-6 rounded-full text-[10px] font-black uppercase">Sair</button>
+        <div className="flex flex-wrap gap-2">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`rounded-2xl px-4 py-3 text-[10px] font-black uppercase transition-all ${activeTab === tab.id ? "bg-white text-black" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+            >
+              {tab.label}
+            </button>
+          ))}
+          <button onClick={() => supabase.auth.signOut().then(() => router.push("/"))} className="bg-red-600 p-3 px-5 rounded-2xl text-[10px] font-black uppercase">Sair</button>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto grid gap-6">
-        {canManage && (
-          <AlunoForm
-            alunoEmEdicao={alunoEmEdicao}
-            canManage={canManage}
-            faixas={faixasFormulario}
-            form={form}
-            salvando={salvando}
-            onCancel={limparFormulario}
-            onChange={atualizarCampo}
-            onSubmit={salvarAluno}
-          />
-        )}
-
-        <AlunosFilters
-          faixas={faixas}
-          filtroFaixa={filtroFaixa}
-          filtroPagamento={filtroPagamento}
-          pesquisa={pesquisa}
-          onFiltroFaixaChange={setFiltroFaixa}
-          onFiltroPagamentoChange={setFiltroPagamento}
-          onPesquisaChange={setPesquisa}
-        />
-
+      <main className="max-w-6xl mx-auto grid gap-6">
         {mensagem && (
           <div className={`border p-4 rounded-2xl text-sm font-bold ${mensagem.tipo === "sucesso" ? "bg-green-500/10 border-green-500/30 text-green-400" : "bg-red-500/10 border-red-500/30 text-red-400"}`}>
             {mensagem.texto}
           </div>
         )}
 
-        <section className="bg-zinc-900 border border-zinc-800 p-6 rounded-[32px]">
-          <div className="mb-5">
-            <h3 className="text-lg font-black uppercase italic">Graduações Pendentes</h3>
-            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Solicitações enviadas pelos alunos</p>
-          </div>
-
-          {graduacoesPendentes.length === 0 ? (
-            <div className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl text-center text-[10px] font-black uppercase tracking-widest text-zinc-500">Nenhuma graduação pendente</div>
-          ) : (
-            <div className="grid gap-3">
-              {graduacoesPendentes.map((solicitacao) => {
-                const aluno = alunosPorId.get(solicitacao.aluno_id);
-
-                return (
-                  <article key={solicitacao.id} className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <h4 className="font-black uppercase">{aluno?.nome ?? "Aluno não encontrado"}</h4>
-                      <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                        {solicitacao.categoria} • Faixa {solicitacao.faixa} • {solicitacao.graus} graus
-                      </p>
-                      {solicitacao.observacoes && <p className="mt-2 text-xs leading-5 text-zinc-400">{solicitacao.observacoes}</p>}
-                      <p className="mt-2 text-[10px] font-bold text-zinc-600">
-                        Enviada em {solicitacao.created_at ? new Date(solicitacao.created_at).toLocaleDateString("pt-BR") : "-"}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <button onClick={() => analisarGraduacao(solicitacao.id, "aprovar")} disabled={!canManage} className="bg-green-500 text-black disabled:opacity-50 p-3 px-5 rounded-2xl text-[9px] font-black uppercase transition-all">Aprovar</button>
-                      <button onClick={() => analisarGraduacao(solicitacao.id, "recusar")} disabled={!canManage} className="bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white disabled:opacity-50 p-3 px-5 rounded-2xl text-[9px] font-black uppercase transition-all">Recusar</button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        <section className="grid gap-4">
-          {carregando ? (
-            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[32px] text-center text-[10px] font-black uppercase tracking-widest text-zinc-500">Carregando atletas...</div>
-          ) : alunosPaginados.length === 0 ? (
-            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[32px] text-center text-[10px] font-black uppercase tracking-widest text-zinc-500">Nenhum atleta encontrado</div>
-          ) : alunosPaginados.map((aluno) => (
-            <AlunoCard
-              key={aluno.id}
-              aluno={aluno}
-              responsavelId={responsaveisPorAluno[aluno.id]}
-              onAtualizarGrau={atualizarGrau}
-              onEditar={canManage ? iniciarEdicao : undefined}
-              onExcluir={canManage ? excluirAluno : undefined}
+        {activeTab === "cadastro" && (
+          canManage ? (
+            <AlunoForm
+              alunoEmEdicao={alunoEmEdicao}
+              canManage={canManage}
+              faixas={faixasFormulario}
+              form={form}
+              salvando={salvando}
+              onCancel={limparFormulario}
+              onChange={atualizarCampo}
+              onSubmit={salvarAluno}
             />
-          ))}
-        </section>
+          ) : (
+            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[32px] text-center text-[10px] font-black uppercase tracking-widest text-zinc-500">Somente administradores podem cadastrar alunos</div>
+          )
+        )}
 
-        <PaginationControls
-          paginaAtual={paginaAtual}
-          totalItens={alunosFiltrados.length}
-          totalPaginas={totalPaginas}
-          onPaginaChange={setPaginaAtual}
-        />
+        {activeTab === "atletas" && (
+          <>
+            <AlunosFilters
+              faixas={faixas}
+              filtroFaixa={filtroFaixa}
+              filtroPagamento={filtroPagamento}
+              pesquisa={pesquisa}
+              onFiltroFaixaChange={setFiltroFaixa}
+              onFiltroPagamentoChange={setFiltroPagamento}
+              onPesquisaChange={setPesquisa}
+            />
+
+            <section className="grid gap-4">
+              {carregando ? (
+                <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[32px] text-center text-[10px] font-black uppercase tracking-widest text-zinc-500">Carregando atletas...</div>
+              ) : alunosPaginados.length === 0 ? (
+                <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[32px] text-center text-[10px] font-black uppercase tracking-widest text-zinc-500">Nenhum atleta encontrado</div>
+              ) : alunosPaginados.map((aluno) => (
+                <AlunoCard
+                  key={aluno.id}
+                  aluno={aluno}
+                  graduacaoStatus={statusGraduacao(aluno)}
+                  responsavelId={responsaveisPorAluno[aluno.id]}
+                  onAtualizarGrau={atualizarGrau}
+                  onEditar={canManage ? iniciarEdicao : undefined}
+                  onExcluir={canManage ? excluirAluno : undefined}
+                />
+              ))}
+            </section>
+
+            <PaginationControls
+              paginaAtual={paginaAtual}
+              totalItens={alunosFiltrados.length}
+              totalPaginas={totalPaginas}
+              onPaginaChange={setPaginaAtual}
+            />
+          </>
+        )}
+
+        {activeTab === "graduacoes" && (
+          <section className="bg-zinc-900 border border-zinc-800 p-6 rounded-[32px]">
+            <div className="mb-5">
+              <h3 className="text-lg font-black uppercase italic">Graduações Pendentes</h3>
+              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Solicitações enviadas pelos alunos</p>
+            </div>
+
+            {graduacoesPendentes.length === 0 ? (
+              <div className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl text-center text-[10px] font-black uppercase tracking-widest text-zinc-500">Nenhuma graduação pendente</div>
+            ) : (
+              <div className="grid gap-3">
+                {graduacoesPendentes.map((solicitacao) => {
+                  const aluno = alunosPorId.get(solicitacao.aluno_id);
+
+                  return (
+                    <article key={solicitacao.id} className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <h4 className="font-black uppercase">{aluno?.nome ?? "Aluno não encontrado"}</h4>
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                          {solicitacao.categoria} • Faixa {solicitacao.faixa} • {solicitacao.graus} graus
+                        </p>
+                        {solicitacao.observacoes && <p className="mt-2 text-xs leading-5 text-zinc-400">{solicitacao.observacoes}</p>}
+                        <p className="mt-2 text-[10px] font-bold text-zinc-600">
+                          Enviada em {solicitacao.created_at ? new Date(solicitacao.created_at).toLocaleDateString("pt-BR") : "-"}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <button onClick={() => analisarGraduacao(solicitacao.id, "aprovar")} disabled={!canManage} className="bg-green-500 text-black disabled:opacity-50 p-3 px-5 rounded-2xl text-[9px] font-black uppercase transition-all">Aprovar</button>
+                        <button onClick={() => analisarGraduacao(solicitacao.id, "recusar")} disabled={!canManage} className="bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white disabled:opacity-50 p-3 px-5 rounded-2xl text-[9px] font-black uppercase transition-all">Recusar</button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeTab === "pagamentos" && (
+          <section className="grid gap-6">
+            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[32px]">
+              <div className="mb-5">
+                <h3 className="text-lg font-black uppercase italic">Alterações de vencimento</h3>
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Solicitações pendentes para aprovação do admin</p>
+              </div>
+
+              {vencimentoSolicitacoes.length === 0 ? (
+                <div className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl text-center text-[10px] font-black uppercase tracking-widest text-zinc-500">Nenhuma solicitação pendente</div>
+              ) : (
+                <div className="grid gap-3">
+                  {vencimentoSolicitacoes.map((solicitacao) => {
+                    const aluno = alunosPorId.get(solicitacao.aluno_id);
+
+                    return (
+                      <article key={solicitacao.id} className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <h4 className="font-black uppercase">{aluno?.nome ?? "Aluno não encontrado"}</h4>
+                          <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Dia {solicitacao.dia_atual} para dia {solicitacao.dia_solicitado}</p>
+                          {solicitacao.motivo && <p className="mt-2 text-xs leading-5 text-zinc-400">{solicitacao.motivo}</p>}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button onClick={() => analisarSolicitacaoVencimento(solicitacao.id, "aprovar")} disabled={!canManage} className="bg-green-500 text-black disabled:opacity-50 p-3 px-5 rounded-2xl text-[9px] font-black uppercase transition-all">Aprovar</button>
+                          <button onClick={() => analisarSolicitacaoVencimento(solicitacao.id, "recusar")} disabled={!canManage} className="bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white disabled:opacity-50 p-3 px-5 rounded-2xl text-[9px] font-black uppercase transition-all">Recusar</button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[32px]">
+              <div className="mb-5">
+                <h3 className="text-lg font-black uppercase italic">Gestão de pagamentos</h3>
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Controle inicial manual</p>
+              </div>
+
+              <div className="grid gap-3">
+                {alunos.length === 0 ? (
+                  <div className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl text-center text-[10px] font-black uppercase tracking-widest text-zinc-500">Nenhum atleta encontrado</div>
+                ) : alunos.map((aluno) => {
+                  const ultimoPagamento = ultimoPagamentoPorAluno.get(aluno.id);
+                  const status = calcularStatusPagamento(aluno, ultimoPagamento);
+
+                  return (
+                    <article key={aluno.id} className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl grid gap-3 md:grid-cols-5 md:items-center">
+                      <div className="md:col-span-2">
+                        <h4 className="font-black uppercase">{aluno.nome}</h4>
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Vence dia {diaPagamentoAluno(aluno)}</p>
+                      </div>
+                      <span className={`w-fit rounded-full px-3 py-1 text-[9px] font-black uppercase ${status === "pago" ? "bg-green-500 text-black" : status === "vence_em_breve" ? "bg-yellow-400 text-black" : status === "vencido" ? "bg-red-600 text-white" : "bg-zinc-800 text-zinc-300"}`}>
+                        {pagamentoStatusLabel[status]}
+                      </span>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Último pagamento: {formatarData(ultimoPagamento?.data_pagamento)}</p>
+                      <p className="text-xs text-zinc-400">{ultimoPagamento?.observacoes ?? "Sem observação"}</p>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );

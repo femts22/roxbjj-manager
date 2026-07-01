@@ -175,12 +175,12 @@ export default function AreaAluno() {
   }
 
   if (carregando) {
-    return <div className="min-h-screen bg-black text-white flex items-center justify-center font-black uppercase italic animate-pulse">A carregar tatame...</div>;
+    return <div className="min-h-dvh bg-black text-white flex items-center justify-center font-black uppercase italic animate-pulse">A carregar tatame...</div>;
   }
 
   if (!aluno) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white p-6">
+      <div className="min-h-dvh bg-zinc-950 text-white p-4 sm:p-6">
         <main className="max-w-md mx-auto min-h-[calc(100vh-3rem)] flex flex-col justify-center gap-6">
           <header className="flex justify-between items-center">
             <h2 className="text-xl font-black italic tracking-tighter">ROXBJJ <span className="text-red-600">PLANALTO</span></h2>
@@ -208,15 +208,15 @@ export default function AreaAluno() {
     .reduce((total, cobranca) => total + cobranca.valor, 0);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-6 pb-12">
-      <div className="max-w-md mx-auto space-y-6">
+    <div className="min-h-dvh bg-zinc-950 text-white p-4 pb-10 sm:p-6 sm:pb-12">
+      <div className="max-w-md mx-auto space-y-5 sm:space-y-6">
         <header className="flex justify-between items-center py-4">
           <h2 className="text-xl font-black italic tracking-tighter">ROXBJJ <span className="text-red-600">PLANALTO</span></h2>
           <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="bg-zinc-900 p-2 px-4 rounded-full text-[10px] font-black border border-zinc-800">SAIR</button>
         </header>
 
         {/* BOX GRADUAÇÃO */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-[40px] p-8 shadow-2xl">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-[32px] sm:rounded-[40px] p-6 sm:p-8 shadow-2xl">
           <div className="mb-6">
             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Aluno</p>
             <h1 className="text-2xl font-black uppercase italic">{aluno.nome}</h1>
@@ -225,7 +225,7 @@ export default function AreaAluno() {
           </div>
           <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4">Graduação Atual</p>
           <div className="flex items-end justify-between mb-4">
-            <h3 className="text-4xl font-black italic uppercase italic">Faixa {aluno.faixa}</h3>
+            <h3 className="text-3xl sm:text-4xl font-black italic uppercase italic">Faixa {aluno.faixa}</h3>
             <span className="text-zinc-500 font-black text-xs italic">{aluno.graus ?? aluno.grau ?? 0} GRAUS</span>
           </div>
           <p className="mb-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Categoria {aluno.categoria}</p>
@@ -245,7 +245,7 @@ export default function AreaAluno() {
           </p>
         </div>
 
-        <section className="bg-zinc-900 border border-zinc-800 rounded-[40px] p-8 shadow-2xl">
+        <section className="bg-zinc-900 border border-zinc-800 rounded-[32px] sm:rounded-[40px] p-6 sm:p-8 shadow-2xl">
           <div className="mb-5">
             <h2 className="text-2xl font-black uppercase italic">Minha Graduação</h2>
             <p className="mt-1 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Graduação oficial</p>
@@ -318,7 +318,7 @@ export default function AreaAluno() {
         </button>
 
         {/* FINANCEIRO */}
-        <div className="bg-white text-black rounded-[40px] p-8">
+        <div className="bg-white text-black rounded-[32px] sm:rounded-[40px] p-6 sm:p-8">
           <div className="flex justify-between items-center mb-6">
             <div>
               <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Vencimento</p>

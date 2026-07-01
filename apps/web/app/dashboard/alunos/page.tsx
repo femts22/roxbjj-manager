@@ -96,7 +96,7 @@ function InfoItem({ label, value }: { label: string; value?: string | number | n
 }
 
 function LoadingFicha() {
-  return <div className="min-h-screen bg-zinc-950 p-6 text-white"><div className="mx-auto max-w-6xl rounded-[32px] border border-zinc-800 bg-zinc-900 p-6 text-center text-[10px] font-black uppercase tracking-widest text-zinc-500">Carregando ficha...</div></div>;
+  return <div className="min-h-dvh bg-zinc-950 p-4 sm:p-6 text-white"><div className="mx-auto max-w-6xl rounded-[32px] border border-zinc-800 bg-zinc-900 p-6 text-center text-[10px] font-black uppercase tracking-widest text-zinc-500">Carregando ficha...</div></div>;
 }
 
 function FichaAlunoContent() {
@@ -258,24 +258,24 @@ function FichaAlunoContent() {
   }
 
   if (erro || !aluno) {
-    return <div className="min-h-screen bg-zinc-950 p-6 text-white"><div className="mx-auto max-w-6xl rounded-[32px] border border-red-500/30 bg-red-500/10 p-6 text-sm font-bold text-red-400">{erro ?? "Aluno não encontrado."}</div></div>;
+    return <div className="min-h-dvh bg-zinc-950 p-4 sm:p-6 text-white"><div className="mx-auto max-w-6xl rounded-[32px] border border-red-500/30 bg-red-500/10 p-6 text-sm font-bold text-red-400">{erro ?? "Aluno não encontrado."}</div></div>;
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 p-6 text-white">
+    <div className="min-h-dvh bg-zinc-950 p-4 sm:p-6 text-white">
       <header className="mx-auto mb-8 flex max-w-6xl flex-col gap-5 md:flex-row md:items-center md:justify-between">
         <div>
           <Link href="/dashboard" className="text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-white">Voltar ao dashboard</Link>
           <h1 className="mt-2 text-3xl font-black uppercase italic">{aluno.nome}</h1>
           <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">{role === "admin" ? "Ficha completa do atleta" : "Visualização da ficha do atleta"}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`rounded-2xl px-4 py-3 text-[10px] font-black uppercase transition-all ${activeTab === tab.id ? "bg-white text-black" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+              className={`shrink-0 rounded-2xl px-4 py-3 text-[10px] font-black uppercase transition-all ${activeTab === tab.id ? "bg-white text-black" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
             >
               {tab.label}
             </button>

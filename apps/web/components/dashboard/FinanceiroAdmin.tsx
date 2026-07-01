@@ -233,7 +233,7 @@ export function FinanceiroAdmin({ alunos, pagamentos, canManage, onReload, onMes
 
   return (
     <section className="grid gap-6">
-      <div className="grid gap-3 md:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl">
           <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Recebido no mês</p>
           <p className="mt-1 text-xl font-black text-green-400">{formatarValor(totais.recebidoMes)}</p>
@@ -256,7 +256,7 @@ export function FinanceiroAdmin({ alunos, pagamentos, canManage, onReload, onMes
         </div>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[32px]">
+      <div className="bg-zinc-900 border border-zinc-800 p-4 sm:p-6 rounded-[32px]">
         <div className="mb-5">
           <h3 className="text-lg font-black uppercase italic">Criar cobrança</h3>
           <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Mensalidade manual sem integração de pagamento</p>
@@ -276,7 +276,7 @@ export function FinanceiroAdmin({ alunos, pagamentos, canManage, onReload, onMes
         </form>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[32px]">
+      <div className="bg-zinc-900 border border-zinc-800 p-4 sm:p-6 rounded-[32px]">
         <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="text-lg font-black uppercase italic">Cobranças</h3>
@@ -301,7 +301,7 @@ export function FinanceiroAdmin({ alunos, pagamentos, canManage, onReload, onMes
             const atualizando = pagamento ? processandoId === pagamento.id : false;
 
             return (
-              <article key={pagamento?.id ?? `sem-cobranca-${cobranca.aluno.id}`} className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl grid gap-4 xl:grid-cols-[1.2fr_1fr_1.4fr_auto] xl:items-center">
+              <article key={pagamento?.id ?? `sem-cobranca-${cobranca.aluno.id}`} className="bg-zinc-950 border border-zinc-800 p-4 sm:p-5 rounded-2xl grid gap-4 xl:grid-cols-[1.2fr_1fr_1.4fr_auto] xl:items-center">
                 <div>
                   <h4 className="font-black uppercase">{cobranca.aluno.nome}</h4>
                   <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Dia base: {diaPagamentoAluno(cobranca.aluno)}</p>
@@ -329,7 +329,7 @@ export function FinanceiroAdmin({ alunos, pagamentos, canManage, onReload, onMes
                   <div className="text-xs font-bold text-zinc-500">Sem cobrança registrada para este aluno no momento.</div>
                 )}
 
-                <div className="flex flex-wrap gap-2 xl:justify-end">
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap xl:justify-end">
                   {pagamento ? (
                     <>
                       <button onClick={() => alterarStatus(pagamento, "pago")} disabled={!canManage || atualizando || cobranca.status === "pago"} className="bg-green-500 text-black disabled:opacity-40 p-3 px-4 rounded-2xl text-[9px] font-black uppercase transition-all">Pago</button>

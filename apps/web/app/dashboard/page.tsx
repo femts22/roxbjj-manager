@@ -490,21 +490,21 @@ export default function DashboardAdmin() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-6">
+    <div className="min-h-dvh bg-zinc-950 text-white p-4 sm:p-6">
       <header className="max-w-6xl mx-auto flex flex-col gap-5 mb-8 md:flex-row md:items-center md:justify-between">
         <h2 className="text-2xl font-black italic uppercase">ROXBJJ <span className="text-red-600">PLANALTO</span></h2>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`rounded-2xl px-4 py-3 text-[10px] font-black uppercase transition-all ${activeTab === tab.id ? "bg-white text-black" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
+              className={`shrink-0 rounded-2xl px-4 py-3 text-[10px] font-black uppercase transition-all ${activeTab === tab.id ? "bg-white text-black" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"}`}
             >
               {tab.label}
             </button>
           ))}
-          <button onClick={() => supabase.auth.signOut().then(() => router.push("/"))} className="bg-red-600 p-3 px-5 rounded-2xl text-[10px] font-black uppercase">Sair</button>
+          <button onClick={() => supabase.auth.signOut().then(() => router.push("/"))} className="shrink-0 bg-red-600 p-3 px-5 rounded-2xl text-[10px] font-black uppercase">Sair</button>
         </div>
       </header>
 

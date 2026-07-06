@@ -6,7 +6,7 @@ import { genericAuthError, genericLoadError, getCurrentProfile, getHomeRouteForR
 import { supabase } from "@/lib/supabase";
 import type { Aluno } from "@/lib/types";
 
-const alunoColumns = "id,user_id,nome,email,categoria,faixa,grau,graus,graduacao_aprovada,pago,vencimento,presencas";
+const alunoColumns = "id,user_id,nome,email,categoria,faixa,grau,graus,graduacao_aprovada,pago,vencimento,dia_vencimento_pagamento,presencas,telefone,whatsapp,cadastro_completo";
 
 export default function AreaResponsavel() {
   const [carregando, setCarregando] = useState(true);
@@ -79,13 +79,13 @@ export default function AreaResponsavel() {
   if (carregando) {
     return (
       <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center font-black uppercase italic animate-pulse">
-        A carregar area do responsavel...
+        Carregando área do responsável...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-6 pb-12">
+    <div className="min-h-dvh bg-zinc-950 text-white p-4 pb-12 sm:p-6">
       <main className="max-w-4xl mx-auto grid gap-6">
         <header className="flex flex-col gap-4 py-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
@@ -93,7 +93,7 @@ export default function AreaResponsavel() {
               ROXBJJ <span className="text-red-600">PLANALTO</span>
             </h1>
             <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-              Area do responsavel
+              Área do responsável
             </p>
           </div>
           <button
@@ -103,6 +103,12 @@ export default function AreaResponsavel() {
             Sair
           </button>
         </header>
+
+        <section className="bg-zinc-900 border border-zinc-800 rounded-[32px] p-6">
+          <p className="text-[10px] font-black uppercase tracking-widest text-red-400">Sobre o Beta</p>
+          <h2 className="mt-2 text-xl font-black uppercase italic">ROXBJJ PLANALTO Beta 1.0</h2>
+          <p className="mt-3 text-xs font-bold leading-5 text-zinc-400">Esta versão está em testes. Envie erros, dúvidas ou sugestões para a administração.</p>
+        </section>
 
         <section className="bg-zinc-900 border border-zinc-800 rounded-[32px] p-6">
           <h1 className="text-3xl font-black italic tracking-tighter uppercase">
@@ -129,24 +135,26 @@ export default function AreaResponsavel() {
             </div>
           ) : alunos.map((aluno) => (
             <article key={aluno.id} className="bg-zinc-900 border border-zinc-800 rounded-[32px] p-6 space-y-5">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h2 className="text-xl font-black uppercase italic">{aluno.nome}</h2>
                   <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">{aluno.email}</p>
+                  {aluno.telefone && <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Telefone: {aluno.telefone}</p>}
+                  {aluno.whatsapp && <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">WhatsApp: {aluno.whatsapp}</p>}
                 </div>
                 <span className={`shrink-0 rounded-full px-3 py-1 text-[9px] font-black ${aluno.pago ? "bg-green-500 text-black" : "bg-red-600 text-white"}`}>
                   {aluno.pago ? "PAGO" : "PENDENTE"}
                 </span>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid gap-3 sm:grid-cols-3">
                 <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
                   <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Faixa</p>
                   <p className="mt-2 text-sm font-black uppercase">{aluno.faixa}</p>
                 </div>
                 <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
                   <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Grau</p>
-                  <p className="mt-2 text-sm font-black">{aluno.grau}</p>
+                  <p className="mt-2 text-sm font-black">{aluno.graus ?? aluno.grau}</p>
                 </div>
                 <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
                   <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Treinos</p>
@@ -154,10 +162,10 @@ export default function AreaResponsavel() {
                 </div>
               </div>
 
-              <div className="bg-white text-black rounded-[28px] p-5 flex items-center justify-between gap-4">
+              <div className="bg-white text-black rounded-[28px] p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Mensalidade</p>
-                  <p className="mt-1 text-2xl font-black italic">Dia {aluno.vencimento}</p>
+                  <p className="mt-1 text-2xl font-black italic">Dia {aluno.dia_vencimento_pagamento ?? aluno.vencimento}</p>
                 </div>
                 <span className={`rounded-full px-3 py-2 text-[9px] font-black ${aluno.pago ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
                   {aluno.pago ? "Em dia" : "Verificar"}

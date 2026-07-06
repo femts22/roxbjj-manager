@@ -20,7 +20,7 @@ type Mensagem = {
 type AdminTab = "atletas" | "cadastro" | "graduacoes" | "pagamentos";
 type GraduacaoCardStatus = "pendente" | "aprovada" | "sem_graduacao";
 
-const alunosColumns = "id,user_id,nome,email,categoria,faixa,grau,graus,graduacao_aprovada,pago,vencimento,dia_vencimento_pagamento,presencas,telefone,data_nascimento,observacoes";
+const alunosColumns = "id,user_id,nome,email,categoria,faixa,grau,graus,graduacao_aprovada,pago,vencimento,dia_vencimento_pagamento,presencas,telefone,data_nascimento,observacoes,nome_social,cpf,rg,whatsapp,cep,rua,numero,complemento,bairro,cidade,estado,contato_emergencia_nome,contato_emergencia_telefone,contato_emergencia_parentesco,tipo_sanguineo,alergias,restricoes_medicas,medicamentos_uso_continuo,observacoes_medicas,responsavel_principal_nome,responsavel_principal_telefone,responsavel_principal_whatsapp,responsavel_principal_email,responsavel_principal_parentesco,cadastro_completo,cadastro_atualizado_em";
 const graduacaoSolicitacoesColumns = "id,aluno_id,user_id,categoria,faixa,graus,data_ultima_graduacao,academia_origem,professor_graduador,observacoes,status,analisado_por,analisado_em,created_at,updated_at";
 const pagamentosColumns = "id,aluno_id,valor,data_vencimento,data_pagamento,status,observacoes,created_at,updated_at";
 const vencimentoSolicitacoesColumns = "id,aluno_id,user_id,dia_atual,dia_solicitado,motivo,status,analisado_por,analisado_em,created_at,updated_at";
@@ -451,7 +451,7 @@ export default function DashboardAdmin() {
       return;
     }
 
-    setMensagem({ tipo: "sucesso", texto: acao === "aprovar" ? "Graduação aprovada." : "Graduação recusada." });
+    setMensagem({ tipo: "sucesso", texto: acao === "aprovar" ? "Graduação aprovada com sucesso. A ficha do atleta foi atualizada." : "Graduação recusada com sucesso." });
     await carregarAlunos();
     await carregarGraduacoesPendentes();
   }
@@ -493,7 +493,7 @@ export default function DashboardAdmin() {
     <div className="min-h-dvh bg-zinc-950 text-white p-4 sm:p-6">
       <header className="max-w-6xl mx-auto flex flex-col gap-5 mb-8 md:flex-row md:items-center md:justify-between">
         <h2 className="text-2xl font-black italic uppercase">ROXBJJ <span className="text-red-600">PLANALTO</span></h2>
-        <div className="flex gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible">
+        <div className="flex max-w-full gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -509,6 +509,11 @@ export default function DashboardAdmin() {
       </header>
 
       <main className="max-w-6xl mx-auto grid gap-6">
+        <section className="rounded-[32px] border border-red-500/20 bg-red-500/10 p-5 sm:p-6">
+          <p className="text-[10px] font-black uppercase tracking-widest text-red-300">Sobre o Beta</p>
+          <h1 className="mt-2 text-2xl font-black uppercase italic">ROXBJJ PLANALTO Beta 1.0</h1>
+          <p className="mt-3 text-sm font-bold leading-6 text-zinc-300">Versão de testes para uso real. Registre erros, dúvidas e sugestões recebidas dos alunos e responsáveis para a administração acompanhar os ajustes finais.</p>
+        </section>
         {mensagem && (
           <div className={`border p-4 rounded-2xl text-sm font-bold ${mensagem.tipo === "sucesso" ? "bg-green-500/10 border-green-500/30 text-green-400" : "bg-red-500/10 border-red-500/30 text-red-400"}`}>
             {mensagem.texto}

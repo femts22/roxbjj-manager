@@ -5,11 +5,13 @@ import { genericLoadError, genericSaveError, getCurrentProfile, getHomeRouteForR
 import { calcularResumoCobranca, formatarData, formatarValor, textoStatusFinanceiro } from '@/lib/financeiro';
 import { categoriasGraduacao, faixaCompativelComCategoria, faixasPorCategoria } from '@/lib/graduacao';
 import { supabase } from '@/lib/supabase';
-import type { Aluno, CategoriaGraduacao, FaixaGraduacao, GraduacaoSolicitacao, Pagamento } from '@/lib/types';
+import type { Aluno, AlunoEvento, AlunoObservacao, CategoriaGraduacao, FaixaGraduacao, GraduacaoSolicitacao, Pagamento } from '@/lib/types';
 
-const alunoColumns = 'id,user_id,nome,email,categoria,faixa,grau,graus,graduacao_aprovada,pago,vencimento,dia_vencimento_pagamento,presencas,telefone,data_nascimento,observacoes';
+const alunoColumns = 'id,user_id,nome,email,categoria,faixa,grau,graus,graduacao_aprovada,pago,vencimento,dia_vencimento_pagamento,presencas,telefone,data_nascimento,observacoes,nome_social,cpf,rg,whatsapp,cep,rua,numero,complemento,bairro,cidade,estado,contato_emergencia_nome,contato_emergencia_telefone,contato_emergencia_parentesco,tipo_sanguineo,alergias,restricoes_medicas,medicamentos_uso_continuo,observacoes_medicas,responsavel_principal_nome,responsavel_principal_telefone,responsavel_principal_whatsapp,responsavel_principal_email,responsavel_principal_parentesco,cadastro_completo,cadastro_atualizado_em';
 const graduacaoSolicitacoesColumns = 'id,aluno_id,user_id,categoria,faixa,graus,data_ultima_graduacao,academia_origem,professor_graduador,observacoes,status,analisado_por,analisado_em,created_at,updated_at';
 const pagamentosColumns = "id,aluno_id,valor,data_vencimento,data_pagamento,status,observacoes,created_at,updated_at";
+const observacoesColumns = "id,aluno_id,autor_id,tipo,visibilidade,conteudo,created_at,updated_at";
+const eventosColumns = "id,aluno_id,tipo,titulo,descricao,criado_por,created_at";
 
 type GraduacaoForm = {
   categoria: CategoriaGraduacao;
@@ -21,6 +23,63 @@ type GraduacaoForm = {
   observacoes: string;
 };
 
+
+type CadastroForm = {
+  nome: string;
+  nome_social: string;
+  cpf: string;
+  rg: string;
+  data_nascimento: string;
+  telefone: string;
+  whatsapp: string;
+  email: string;
+  cep: string;
+  rua: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  contato_emergencia_nome: string;
+  contato_emergencia_telefone: string;
+  contato_emergencia_parentesco: string;
+  tipo_sanguineo: string;
+  alergias: string;
+  restricoes_medicas: string;
+  medicamentos_uso_continuo: string;
+  observacoes_medicas: string;
+  responsavel_principal_nome: string;
+  responsavel_principal_telefone: string;
+  responsavel_principal_whatsapp: string;
+  responsavel_principal_email: string;
+  responsavel_principal_parentesco: string;
+  observacoes: string;
+};
+
+const cadastroCampos = [
+  ["Dados pessoais", [["nome", "Nome completo"], ["nome_social", "Nome social/apelido"], ["cpf", "CPF"], ["rg", "RG"], ["data_nascimento", "Data de nascimento", "date"]]],
+  ["Contato e endereço", [["telefone", "Telefone"], ["whatsapp", "WhatsApp"], ["email", "E-mail", "email"], ["cep", "CEP"], ["rua", "Rua"], ["numero", "Número"], ["complemento", "Complemento"], ["bairro", "Bairro"], ["cidade", "Cidade"], ["estado", "Estado"]]],
+  ["Emergência e saúde", [["contato_emergencia_nome", "Contato de emergência"], ["contato_emergencia_telefone", "Telefone de emergência"], ["contato_emergencia_parentesco", "Grau de parentesco"], ["tipo_sanguineo", "Tipo sanguíneo"], ["alergias", "Alergias", "textarea"], ["restricoes_medicas", "Restrições médicas", "textarea"], ["medicamentos_uso_continuo", "Medicamentos de uso contínuo"], ["observacoes_medicas", "Observações médicas", "textarea"]]],
+  ["Responsável principal", [["responsavel_principal_nome", "Nome"], ["responsavel_principal_telefone", "Telefone"], ["responsavel_principal_whatsapp", "WhatsApp"], ["responsavel_principal_email", "E-mail", "email"], ["responsavel_principal_parentesco", "Grau de parentesco"], ["observacoes", "Observações do aluno", "textarea"]]],
+] as const;
+
+const cadastroFormInicial: CadastroForm = {
+  nome: "", nome_social: "", cpf: "", rg: "", data_nascimento: "", telefone: "", whatsapp: "", email: "", cep: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "",
+  contato_emergencia_nome: "", contato_emergencia_telefone: "", contato_emergencia_parentesco: "", tipo_sanguineo: "", alergias: "", restricoes_medicas: "", medicamentos_uso_continuo: "", observacoes_medicas: "",
+  responsavel_principal_nome: "", responsavel_principal_telefone: "", responsavel_principal_whatsapp: "", responsavel_principal_email: "", responsavel_principal_parentesco: "", observacoes: "",
+};
+
+function texto(valor?: string | null) { return valor ?? ""; }
+function valorOuNull(valor: string) { const limpo = valor.trim(); return limpo ? limpo : null; }
+function cadastroMinimoCompleto(form: CadastroForm) { return Boolean(form.nome.trim() && (form.telefone.trim() || form.whatsapp.trim()) && form.data_nascimento && form.contato_emergencia_nome.trim() && form.contato_emergencia_telefone.trim() && form.cep.trim() && form.rua.trim() && form.numero.trim() && form.bairro.trim() && form.cidade.trim() && form.estado.trim()); }
+
+function alunoParaCadastroForm(aluno: Aluno): CadastroForm {
+  return {
+    nome: texto(aluno.nome), nome_social: texto(aluno.nome_social), cpf: texto(aluno.cpf), rg: texto(aluno.rg), data_nascimento: texto(aluno.data_nascimento), telefone: texto(aluno.telefone), whatsapp: texto(aluno.whatsapp), email: texto(aluno.email), cep: texto(aluno.cep), rua: texto(aluno.rua), numero: texto(aluno.numero), complemento: texto(aluno.complemento), bairro: texto(aluno.bairro), cidade: texto(aluno.cidade), estado: texto(aluno.estado),
+    contato_emergencia_nome: texto(aluno.contato_emergencia_nome), contato_emergencia_telefone: texto(aluno.contato_emergencia_telefone), contato_emergencia_parentesco: texto(aluno.contato_emergencia_parentesco), tipo_sanguineo: texto(aluno.tipo_sanguineo), alergias: texto(aluno.alergias), restricoes_medicas: texto(aluno.restricoes_medicas), medicamentos_uso_continuo: texto(aluno.medicamentos_uso_continuo), observacoes_medicas: texto(aluno.observacoes_medicas),
+    responsavel_principal_nome: texto(aluno.responsavel_principal_nome), responsavel_principal_telefone: texto(aluno.responsavel_principal_telefone), responsavel_principal_whatsapp: texto(aluno.responsavel_principal_whatsapp), responsavel_principal_email: texto(aluno.responsavel_principal_email), responsavel_principal_parentesco: texto(aluno.responsavel_principal_parentesco), observacoes: texto(aluno.observacoes),
+  };
+}
 const graduacaoFormInicial: GraduacaoForm = {
   categoria: "adulto",
   faixa: "branca",
@@ -35,11 +94,16 @@ export default function AreaAluno() {
   const [aluno, setAluno] = useState<Aluno | null>(null);
   const [solicitacaoPendente, setSolicitacaoPendente] = useState<GraduacaoSolicitacao | null>(null);
   const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
+  const [observacoesAluno, setObservacoesAluno] = useState<AlunoObservacao[]>([]);
+  const [eventosAluno, setEventosAluno] = useState<AlunoEvento[]>([]);
   const [graduacaoForm, setGraduacaoForm] = useState<GraduacaoForm>(graduacaoFormInicial);
+  const [cadastroForm, setCadastroForm] = useState<CadastroForm>(cadastroFormInicial);
   const [carregando, setCarregando] = useState(true);
   const [salvandoGraduacao, setSalvandoGraduacao] = useState(false);
+  const [salvandoCadastro, setSalvandoCadastro] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [mensagemGraduacao, setMensagemGraduacao] = useState<string | null>(null);
+  const [mensagemCadastro, setMensagemCadastro] = useState<string | null>(null);
   const router = useRouter();
 
   const carregarDados = useCallback(async () => {
@@ -64,6 +128,7 @@ export default function AreaAluno() {
     setAluno(data ?? null);
 
     if (data) {
+      setCadastroForm(alunoParaCadastroForm(data));
       setGraduacaoForm((atual) => ({
         ...atual,
         categoria: data.categoria ?? "adulto",
@@ -84,17 +149,19 @@ export default function AreaAluno() {
 
       setSolicitacaoPendente(solicitacao ?? null);
 
-      const { data: pagamentosData, error: pagamentosError } = await supabase
-        .from("pagamentos")
-        .select(pagamentosColumns)
-        .eq("aluno_id", data.id)
-        .order("data_vencimento", { ascending: false });
+      const [pagamentosResult, observacoesResult, eventosResult] = await Promise.all([
+        supabase.from("pagamentos").select(pagamentosColumns).eq("aluno_id", data.id).order("data_vencimento", { ascending: false }),
+        supabase.from("aluno_observacoes").select(observacoesColumns).eq("aluno_id", data.id).eq("visibilidade", "aluno").order("created_at", { ascending: false }),
+        supabase.from("aluno_eventos").select(eventosColumns).eq("aluno_id", data.id).order("created_at", { ascending: false }).limit(8),
+      ]);
 
-      if (pagamentosError) {
-        logClientError("Failed to load student payments", pagamentosError);
-      }
+      if (pagamentosResult.error) logClientError("Failed to load student payments", pagamentosResult.error);
+      if (observacoesResult.error) logClientError("Failed to load student notes", observacoesResult.error);
+      if (eventosResult.error) logClientError("Failed to load student events", eventosResult.error);
 
-      setPagamentos(pagamentosData ?? []);
+      setPagamentos(pagamentosResult.data ?? []);
+      setObservacoesAluno(observacoesResult.data ?? []);
+      setEventosAluno(eventosResult.data ?? []);
     }
 
     setCarregando(false);
@@ -116,6 +183,66 @@ export default function AreaAluno() {
     await carregarDados();
   }
 
+
+  function atualizarCadastro<K extends keyof CadastroForm>(campo: K, valor: CadastroForm[K]) {
+    setCadastroForm((atual) => ({ ...atual, [campo]: valor }));
+  }
+
+  async function salvarCadastro(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!aluno) return;
+
+    if (!cadastroForm.nome.trim()) {
+      setMensagemCadastro("Informe seu nome completo.");
+      return;
+    }
+
+    setSalvandoCadastro(true);
+    setMensagemCadastro(null);
+
+    const { error } = await supabase.rpc("atualizar_cadastro_aluno", {
+      p_nome: cadastroForm.nome.trim(),
+      p_nome_social: valorOuNull(cadastroForm.nome_social),
+      p_cpf: valorOuNull(cadastroForm.cpf),
+      p_rg: valorOuNull(cadastroForm.rg),
+      p_data_nascimento: valorOuNull(cadastroForm.data_nascimento),
+      p_telefone: valorOuNull(cadastroForm.telefone),
+      p_whatsapp: valorOuNull(cadastroForm.whatsapp),
+      p_email: cadastroForm.email.trim(),
+      p_cep: valorOuNull(cadastroForm.cep),
+      p_rua: valorOuNull(cadastroForm.rua),
+      p_numero: valorOuNull(cadastroForm.numero),
+      p_complemento: valorOuNull(cadastroForm.complemento),
+      p_bairro: valorOuNull(cadastroForm.bairro),
+      p_cidade: valorOuNull(cadastroForm.cidade),
+      p_estado: valorOuNull(cadastroForm.estado),
+      p_contato_emergencia_nome: valorOuNull(cadastroForm.contato_emergencia_nome),
+      p_contato_emergencia_telefone: valorOuNull(cadastroForm.contato_emergencia_telefone),
+      p_contato_emergencia_parentesco: valorOuNull(cadastroForm.contato_emergencia_parentesco),
+      p_tipo_sanguineo: valorOuNull(cadastroForm.tipo_sanguineo),
+      p_alergias: valorOuNull(cadastroForm.alergias),
+      p_restricoes_medicas: valorOuNull(cadastroForm.restricoes_medicas),
+      p_medicamentos_uso_continuo: valorOuNull(cadastroForm.medicamentos_uso_continuo),
+      p_observacoes_medicas: valorOuNull(cadastroForm.observacoes_medicas),
+      p_responsavel_principal_nome: valorOuNull(cadastroForm.responsavel_principal_nome),
+      p_responsavel_principal_telefone: valorOuNull(cadastroForm.responsavel_principal_telefone),
+      p_responsavel_principal_whatsapp: valorOuNull(cadastroForm.responsavel_principal_whatsapp),
+      p_responsavel_principal_email: valorOuNull(cadastroForm.responsavel_principal_email),
+      p_responsavel_principal_parentesco: valorOuNull(cadastroForm.responsavel_principal_parentesco),
+      p_observacoes: valorOuNull(cadastroForm.observacoes),
+    });
+
+    if (error) {
+      logClientError("Failed to update student profile", error);
+      setMensagemCadastro(genericSaveError);
+      setSalvandoCadastro(false);
+      return;
+    }
+
+    setMensagemCadastro(cadastroMinimoCompleto(cadastroForm) ? "Cadastro salvo com sucesso." : "Cadastro salvo. Ainda faltam informações obrigatórias.");
+    await carregarDados();
+    setSalvandoCadastro(false);
+  }
   function atualizarGraduacao<K extends keyof GraduacaoForm>(campo: K, valor: GraduacaoForm[K]) {
     setGraduacaoForm((atual) => {
       if (campo === "categoria") {
@@ -169,13 +296,13 @@ export default function AreaAluno() {
       return;
     }
 
-    setMensagemGraduacao("Sua graduação foi enviada para análise do mestre.");
+    setMensagemGraduacao("Graduação enviada com sucesso. A administração vai analisar e atualizar sua ficha.");
     await carregarDados();
     setSalvandoGraduacao(false);
   }
 
   if (carregando) {
-    return <div className="min-h-dvh bg-black text-white flex items-center justify-center font-black uppercase italic animate-pulse">A carregar tatame...</div>;
+    return <div className="min-h-dvh bg-black text-white flex items-center justify-center font-black uppercase italic animate-pulse">Carregando sua área...</div>;
   }
 
   if (!aluno) {
@@ -199,6 +326,7 @@ export default function AreaAluno() {
     );
   }
 
+  const cadastroCompleto = aluno.cadastro_completo || cadastroMinimoCompleto(cadastroForm);
   const cobrancas = pagamentos.map((pagamento) => calcularResumoCobranca(aluno, pagamento));
   const valorEmAberto = cobrancas
     .filter((cobranca) => cobranca.status === "aberto" || cobranca.status === "vence_hoje")
@@ -216,6 +344,61 @@ export default function AreaAluno() {
         </header>
 
         {/* BOX GRADUAÇÃO */}
+        <section className="bg-zinc-900 border border-zinc-800 rounded-[32px] sm:rounded-[40px] p-6 sm:p-8 shadow-2xl">
+          <p className="text-[10px] font-black uppercase tracking-widest text-red-400">Sobre o Beta</p>
+          <h2 className="mt-2 text-xl font-black uppercase italic">ROXBJJ PLANALTO Beta 1.0</h2>
+          <p className="mt-3 text-xs font-bold leading-5 text-zinc-400">Esta versão está em testes com usuários reais. Se encontrar erro, dificuldade ou tiver sugestão, envie para a administração.</p>
+        </section>
+
+
+        {!cadastroCompleto && (
+          <div className="rounded-3xl border border-yellow-400/30 bg-yellow-400/10 p-5 text-sm font-bold leading-6 text-yellow-100">
+            Complete seu cadastro para que a equipe tenha todas as informações necessárias.
+          </div>
+        )}
+
+        <section className="bg-zinc-900 border border-zinc-800 rounded-[32px] sm:rounded-[40px] p-6 sm:p-8 shadow-2xl">
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-black uppercase italic">Meu cadastro</h2>
+              <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-zinc-500">Dados completos do aluno</p>
+            </div>
+            <span className={`w-fit rounded-full px-3 py-1 text-[9px] font-black uppercase ${cadastroCompleto ? "bg-green-500 text-black" : "bg-yellow-400 text-black"}`}>
+              {cadastroCompleto ? "Cadastro completo" : "Cadastro incompleto"}
+            </span>
+          </div>
+
+          <form onSubmit={salvarCadastro} className="grid gap-6">
+            {cadastroCampos.map(([grupo, campos]) => (
+              <fieldset key={grupo} className="grid gap-3">
+                <legend className="mb-1 text-sm font-black uppercase italic text-zinc-200">{grupo}</legend>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {campos.map(([campo, label, tipo]) => {
+                    const nomeCampo = campo as keyof CadastroForm;
+                    const comum = "w-full rounded-2xl border border-zinc-800 bg-zinc-950 p-3 text-sm outline-none focus:border-red-600";
+
+                    return (
+                      <label key={campo} className={tipo === "textarea" ? "grid gap-1 sm:col-span-2" : "grid gap-1"}>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">{label}</span>
+                        {tipo === "textarea" ? (
+                          <textarea value={cadastroForm[nomeCampo]} onChange={(event) => atualizarCadastro(nomeCampo, event.target.value)} className={`${comum} min-h-20 resize-none`} />
+                        ) : (
+                          <input type={tipo ?? "text"} value={cadastroForm[nomeCampo]} onChange={(event) => atualizarCadastro(nomeCampo, nomeCampo === "estado" ? event.target.value.toUpperCase() : event.target.value)} className={comum} maxLength={nomeCampo === "estado" ? 2 : undefined} />
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            ))}
+
+            {mensagemCadastro && <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-3 text-xs font-bold text-zinc-300">{mensagemCadastro}</div>}
+
+            <button disabled={salvandoCadastro} className="rounded-2xl bg-red-600 p-4 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-red-700 disabled:opacity-50">
+              {salvandoCadastro ? "Salvando..." : "Salvar meu cadastro"}
+            </button>
+          </form>
+        </section>
         <div className="bg-zinc-900 border border-zinc-800 rounded-[32px] sm:rounded-[40px] p-6 sm:p-8 shadow-2xl">
           <div className="mb-6">
             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Aluno</p>
@@ -224,8 +407,8 @@ export default function AreaAluno() {
             {aluno.telefone && <p className="mt-1 text-[10px] font-bold text-zinc-500">{aluno.telefone}</p>}
           </div>
           <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4">Graduação Atual</p>
-          <div className="flex items-end justify-between mb-4">
-            <h3 className="text-3xl sm:text-4xl font-black italic uppercase italic">Faixa {aluno.faixa}</h3>
+          <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:items-end sm:justify-between">
+            <h3 className="text-2xl sm:text-4xl font-black italic uppercase">Faixa {aluno.faixa}</h3>
             <span className="text-zinc-500 font-black text-xs italic">{aluno.graus ?? aluno.grau ?? 0} GRAUS</span>
           </div>
           <p className="mb-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Categoria {aluno.categoria}</p>
@@ -274,9 +457,9 @@ export default function AreaAluno() {
             </div>
           ) : solicitacaoPendente ? (
             <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5 space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-yellow-400">Em análise pelo mestre</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-yellow-400">Em análise</p>
               <p className="text-sm font-bold uppercase">Categoria {solicitacaoPendente.categoria} • Faixa {solicitacaoPendente.faixa} • {solicitacaoPendente.graus} graus</p>
-              <p className="text-xs leading-5 text-zinc-400">Sua graduação foi enviada para análise do mestre.</p>
+              <p className="text-xs leading-5 text-zinc-400">Sua graduação foi enviada para análise da administração.</p>
             </div>
           ) : (
             <form onSubmit={enviarSolicitacaoGraduacao} className="grid gap-3">
@@ -319,7 +502,7 @@ export default function AreaAluno() {
 
         {/* FINANCEIRO */}
         <div className="bg-white text-black rounded-[32px] sm:rounded-[40px] p-6 sm:p-8">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Vencimento</p>
               <p className="text-2xl font-black italic">DIA {aluno.dia_vencimento_pagamento ?? aluno.vencimento}</p>
@@ -335,7 +518,7 @@ export default function AreaAluno() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3 mb-5">
+          <div className="grid gap-3 mb-5 sm:grid-cols-2">
             <div className="bg-zinc-100 p-4 rounded-3xl">
               <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Em aberto</p>
               <p className="mt-1 font-black">{formatarValor(valorEmAberto)}</p>
@@ -371,6 +554,26 @@ export default function AreaAluno() {
 
           <p className="mt-5 text-[10px] font-black text-zinc-400 uppercase">Alterações financeiras são feitas pela equipe administrativa.</p>
         </div>
+        {(observacoesAluno.length > 0 || eventosAluno.length > 0) && (
+          <section className="bg-zinc-900 border border-zinc-800 rounded-[32px] sm:rounded-[40px] p-6 sm:p-8 shadow-2xl">
+            <h2 className="text-2xl font-black uppercase italic">Linha do tempo</h2>
+            <div className="mt-5 grid gap-3">
+              {observacoesAluno.map((observacao) => (
+                <article key={observacao.id} className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-red-300">Observação {observacao.tipo}</p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-300">{observacao.conteudo}</p>
+                </article>
+              ))}
+              {eventosAluno.map((evento) => (
+                <article key={evento.id} className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">{evento.created_at ? new Date(evento.created_at).toLocaleDateString("pt-BR") : "-"}</p>
+                  <h3 className="mt-1 text-sm font-black uppercase">{evento.titulo}</h3>
+                  {evento.descricao && <p className="mt-2 text-xs leading-5 text-zinc-400">{evento.descricao}</p>}
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

@@ -1,9 +1,9 @@
 import { supabase } from "./supabase";
 import type { AppRole, Profile } from "./types";
 
-export const genericAuthError = "Não foi possível acessar o sistema.";
-export const genericLoadError = "Não foi possível carregar os dados.";
-export const genericSaveError = "Não foi possível salvar as alterações.";
+export const genericAuthError = "Não foi possível acessar agora. Confira os dados e tente novamente.";
+export const genericLoadError = "Não foi possível carregar as informações. Tente novamente em instantes.";
+export const genericSaveError = "Não foi possível salvar. Tente novamente ou avise a administração.";
 
 export function canAccessDashboard(role: AppRole | null | undefined) {
   return role === "admin" || role === "professor";

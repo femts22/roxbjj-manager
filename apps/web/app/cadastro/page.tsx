@@ -85,7 +85,7 @@ export default function CadastroAlunoPage() {
         return;
       }
 
-      setSucesso("Cadastro criado. Verifique seu e-mail para acessar sua área de aluno.");
+      setSucesso("Cadastro criado com sucesso. Verifique seu e-mail e entre na sua área da ROXBJJ PLANALTO.");
       setForm(formInicial);
     } catch (error: unknown) {
       logClientError("Student signup failed", error);
@@ -103,9 +103,13 @@ export default function CadastroAlunoPage() {
             ROXBJJ <span className="text-red-600">PLANALTO</span>
           </h1>
           <p className="text-gray-500 text-sm font-medium uppercase tracking-widest">
-            Cadastro de aluno
+            Cadastro na ROXBJJ PLANALTO
           </p>
         </header>
+
+        <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-xs font-bold leading-5 text-red-700">
+          Beta 1.0: esta versão está em testes. Depois do cadastro, envie erros ou sugestões para a administração.
+        </div>
 
         <form onSubmit={handleCadastro} className="space-y-4">
           <div className="relative">
@@ -186,7 +190,7 @@ export default function CadastroAlunoPage() {
             value={form.observacoes}
             onChange={(event) => atualizarCampo("observacoes", event.target.value)}
             className="min-h-24 w-full resize-none bg-gray-50 border border-gray-300 text-gray-900 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
-            placeholder="Observações opcionais"
+            placeholder="Conte algo importante para a administração (opcional)"
           />
 
           {erro && (

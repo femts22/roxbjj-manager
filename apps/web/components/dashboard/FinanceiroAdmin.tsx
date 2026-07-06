@@ -126,6 +126,18 @@ export function FinanceiroAdmin({ alunos, pagamentos, canManage, onReload, onMes
     }));
   }
 
+
+  async function registrarEventoFinanceiro(alunoId: string, titulo: string, descricao: string) {
+    const { data: userData } = await supabase.auth.getUser();
+    const { error } = await supabase.from("aluno_eventos").insert({
+      aluno_id: alunoId,
+      tipo: "financeiro",
+      titulo,
+      descricao,
+      criado_por: userData.user?.id ?? null,
+    });
+    if (error) logClientError("Failed to create financial event", error);
+  }
   async function sincronizarAlunoPago(alunoId: string, pago: boolean) {
     const { error } = await supabase.from("alunos").update({ pago }).eq("id", alunoId);
     if (error) logClientError("Failed to sync aluno payment flag", error);
@@ -160,8 +172,9 @@ export function FinanceiroAdmin({ alunos, pagamentos, canManage, onReload, onMes
     }
 
     await sincronizarAlunoPago(form.aluno_id, form.status === "pago");
+    await registrarEventoFinanceiro(form.aluno_id, "Cobrança criada", `Cobrança ${form.status} criada no financeiro.`);
     setForm(formInicial);
-    onMessage({ tipo: "sucesso", texto: "Cobrança criada com sucesso." });
+    onMessage({ tipo: "sucesso", texto: "Cobrança criada com sucesso. O aluno já poderá acompanhar na área dele." });
     await onReload();
   }
 
@@ -198,7 +211,8 @@ export function FinanceiroAdmin({ alunos, pagamentos, canManage, onReload, onMes
     }
 
     await sincronizarAlunoPago(pagamento.aluno_id, edicao.status === "pago");
-    onMessage({ tipo: "sucesso", texto: "Cobrança atualizada." });
+    await registrarEventoFinanceiro(pagamento.aluno_id, "Pagamento atualizado", `Cobrança atualizada para ${edicao.status}.`);
+    onMessage({ tipo: "sucesso", texto: "Pagamento atualizado com sucesso." });
     await onReload();
     setProcessandoId(null);
   }
@@ -226,13 +240,19 @@ export function FinanceiroAdmin({ alunos, pagamentos, canManage, onReload, onMes
     }
 
     await sincronizarAlunoPago(pagamento.aluno_id, status === "pago");
-    onMessage({ tipo: "sucesso", texto: status === "pago" ? "Cobrança marcada como paga." : status === "cancelado" ? "Cobrança cancelada." : "Cobrança atualizada." });
+    await registrarEventoFinanceiro(pagamento.aluno_id, status === "pago" ? "Pagamento pago" : status === "cancelado" ? "Pagamento cancelado" : "Pagamento atualizado", `Status financeiro alterado para ${status}.`);
+    onMessage({ tipo: "sucesso", texto: status === "pago" ? "Pagamento marcado como pago com sucesso." : status === "cancelado" ? "Cobrança cancelada com sucesso." : "Pagamento atualizado com sucesso." });
     await onReload();
     setProcessandoId(null);
   }
 
   return (
     <section className="grid gap-6">
+      {!canManage && (
+        <div className="rounded-2xl border border-yellow-400/30 bg-yellow-400/10 p-4 text-xs font-bold leading-5 text-yellow-100">
+          Seu perfil pode consultar o financeiro, mas alterações de pagamento e cobrança são feitas apenas pela administração.
+        </div>
+      )}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl">
           <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Recebido no mês</p>
@@ -259,7 +279,7 @@ export function FinanceiroAdmin({ alunos, pagamentos, canManage, onReload, onMes
       <div className="bg-zinc-900 border border-zinc-800 p-4 sm:p-6 rounded-[32px]">
         <div className="mb-5">
           <h3 className="text-lg font-black uppercase italic">Criar cobrança</h3>
-          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Mensalidade manual sem integração de pagamento</p>
+          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Registro de mensalidade para acompanhamento interno</p>
         </div>
         <form onSubmit={criarCobranca} className="grid gap-3 lg:grid-cols-6">
           <select disabled={!canManage} value={form.aluno_id} onChange={(event) => atualizarForm("aluno_id", event.target.value)} className="lg:col-span-2 bg-zinc-950 border border-zinc-800 p-3 rounded-2xl text-sm outline-none disabled:opacity-50">

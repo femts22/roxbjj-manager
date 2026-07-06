@@ -32,6 +32,9 @@ export function AlunoCard({ aluno, graduacaoStatus, responsavelId, onAtualizarGr
           <span className={`text-[8px] px-2 py-0.5 rounded-full font-black ${graduacaoStatus === "pendente" ? "bg-yellow-400 text-black" : graduacaoStatus === "aprovada" ? "bg-green-500 text-black" : "bg-zinc-800 text-zinc-400"}`}>
             {graduacaoStatusLabel[graduacaoStatus]}
           </span>
+          <span className={`text-[8px] px-2 py-0.5 rounded-full font-black ${aluno.cadastro_completo ? "bg-green-500 text-black" : "bg-yellow-400 text-black"}`}>
+            {aluno.cadastro_completo ? "Cadastro completo" : "Cadastro incompleto"}
+          </span>
         </div>
         <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Categoria {aluno.categoria} • Faixa {aluno.faixa} • {aluno.graus ?? aluno.grau} Graus • Vence dia {diaVencimento} • {aluno.presencas ?? 0} treinos</p>
         <p className="text-[10px] text-zinc-600 font-bold mt-1">{aluno.email}</p>

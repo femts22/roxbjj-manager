@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { genericAuthError, getCurrentProfile, getHomeRouteForRole, logClientError } from '@/lib/auth';
+import { getCurrentProfile, getHomeRouteForRole, logClientError } from '@/lib/auth';
 import { Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
@@ -38,7 +38,7 @@ export default function LoginPage() {
       router.refresh();
     } catch (err: unknown) {
       logClientError("Login failed", err);
-      setError(genericAuthError);
+      setError("E-mail ou senha incorretos. Confira os dados e tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -54,7 +54,7 @@ export default function LoginPage() {
             ROXBJJ <span className="text-red-600">PLANALTO</span>
           </h1>
           <p className="mt-2 text-gray-500 text-sm font-medium uppercase tracking-widest">
-            Acesse o tatame digital
+            Acesse sua área da ROXBJJ PLANALTO
           </p>
         </div>
 
@@ -115,8 +115,12 @@ export default function LoginPage() {
           </Link>
         </div>
 
+        <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-center text-xs font-bold leading-5 text-red-700">
+          Beta 1.0: esta versão está em testes. Envie erros ou sugestões para a administração.
+        </div>
+
         <div className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-          ROXBJJ PLANALTO © 2026 - Gestão de Elite
+          ROXBJJ PLANALTO © 2026 - Beta 1.0
         </div>
       </div>
     </div>

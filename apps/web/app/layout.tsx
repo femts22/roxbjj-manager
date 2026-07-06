@@ -3,13 +3,14 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "ROXBJJ PLANALTO",
-  description: "Sistema de gestão da academia ROXBJJ PLANALTO",
+  description: "Área de alunos, responsáveis e administração da ROXBJJ PLANALTO",
   applicationName: "ROXBJJ PLANALTO",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     title: "ROXBJJ PLANALTO",
     statusBarStyle: "black-translucent",
+    startupImage: ["/icon.svg"],
   },
   icons: {
     icon: "/icon.svg",

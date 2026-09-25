@@ -102,9 +102,9 @@ create trigger set_aluno_cadastro_status
 before insert or update on public.alunos
 for each row execute function public.set_aluno_cadastro_status();
 
-update public.alunos
-set cadastro_completo = public.aluno_cadastro_completo(public.alunos),
-    cadastro_atualizado_em = coalesce(cadastro_atualizado_em, updated_at, created_at, now());
+update public.alunos a
+set cadastro_completo = public.aluno_cadastro_completo(a),
+    cadastro_atualizado_em = coalesce(a.cadastro_atualizado_em, a.updated_at, a.created_at, now());
 
 create table if not exists public.aluno_observacoes (
   id uuid primary key default gen_random_uuid(),
